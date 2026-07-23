@@ -7,10 +7,10 @@ Auto-refreshing options-trading dashboard fed from one Google Sheet.
    **Desktop app** client, download it to `fetcher/credentials.json`.
 2. `cd fetcher && uv sync` (creates the environment from `uv.lock`; optional —
    `uv run` also syncs on demand).
-3. First consent (opens a browser once):
+3. `cd web && npm install && npm run build` (creates `web/dist/`, which the
+   next step writes into).
+4. First consent (opens a browser once), run from `fetcher/`:
    `SPREADSHEET_ID="<id>" OUTPUT_PATH="../web/dist/trades.json" uv run python fetch_trades.py`
-   (Build the web app first so `web/dist/` exists — see below.)
-4. `cd web && npm install && npm run build`
 5. Put your Sheet ID into `scripts/run_fetch.sh` (SPREADSHEET_ID).
 
 ## Run it (launchd)
