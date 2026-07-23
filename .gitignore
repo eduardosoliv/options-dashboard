@@ -15,3 +15,6 @@ web/dist/
 # Runtime data
 trades.json
 web/public/trades.json
+
+# SDD scratch
+.superpowers/

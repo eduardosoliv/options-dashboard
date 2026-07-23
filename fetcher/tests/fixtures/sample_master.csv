@@ -1,0 +1,167 @@
+Acquired,Expires,Days,Position,#,Column 1,Type,Premium,Strike,Price,Buffer,Risk Level,Risk,Duration,Est. Annualized Yield,Closed On,Gain/Loss,Capital,Real Yield
+,,,,,,,"$64,185.20",,,,,"$866,500",,13.32%,,"$37,739.91","$2,043,200",14.21%
+"Dec 16, 25","Jan 16, 26",CLOSED,JPM 280 Put,2,JPM,Short Put,,$280.0,,,,,31,,"Jan 13, 26",$266.62,"$56,000",6.21%
+"Jan 13, 26","Jan 23, 26",CLOSED,NFLX 80 Put,3,NFLX,Short Put,,$80.0,,,,,10,,"Jan 22, 26",$165.91,"$24,000",28.04%
+"Jan 13, 26","Feb 6, 26",CLOSED,GOOGL 295 Put,1,GOOGL,Short Put,,$295.0,,,,,24,,"Feb 6, 26",$188.31,"$29,500",9.71%
+"Jan 13, 26","Feb 6, 26",CLOSED,GOOGL 285 Put,2,GOOGL,Short Put,,$285.0,,,,,24,,"Feb 6, 26",$220.60,"$57,000",5.89%
+"Jan 13, 26","Feb 6, 26",CLOSED,AMZN 205 Put,2,AMZN,Short Put,,$205.0,,,,,24,,"Feb 6, 26",$196.60,"$41,000",7.29%
+"Dec 16, 25","Feb 20, 26",CLOSED,GOOGL 365 Call,1,GOOGL,Covered Call,,$365.0,,,,,66,,"Feb 11, 26",$301.32,,
+"Dec 16, 25","Feb 20, 26",CLOSED,BABA 175 Call,2,BABA,Covered Call,,$175.0,,,,,66,,"Feb 17, 26",$444.62,,
+"Nov 14, 25","Feb 20, 26",CLOSED,META 770 Call,1,META,Covered Call,,$770.0,,,,,98,,"Feb 11, 26","$1,042.31",,
+"Nov 14, 25","Feb 20, 26",CLOSED,AMZN 275 Call,1,AMZN,Covered Call,,$275.0,,,,,98,,"Feb 9, 26",$595.31,,
+"Nov 17, 25","Feb 20, 26",ASSIGNED,MSFT 435 Put,1,MSFT,Short Put,,$435.0,,,,,95,,"Feb 20, 26","-$3,201.67","$43,500",
+"Nov 17, 25","Feb 20, 26",ASSIGNED,UBER 80 Put,2,UBER,Short Put,,$80.0,,,,,95,,"Feb 12, 26","-$1,283.34","$16,000",
+"Nov 17, 25","Feb 20, 26",CLOSED,BX 120 Put,1,BX,Short Put,,$120.0,,,,,95,,"Feb 20, 26",$313.31,"$12,000",10.03%
+"Nov 17, 25","Feb 20, 26",CLOSED,BX 95 Put,1,BX,Short Put,,$95.0,,,,,95,,"Feb 17, 26",$76.31,"$9,500",3.19%
+"Nov 26, 25","Feb 20, 26",CLOSED,AXP 310 Put,1,AXP,Short Put,,$310.0,,,,,86,,"Feb 18, 26",$406.31,"$31,000",5.70%
+"Jan 13, 26","Feb 20, 26",EXPIRED,MRSH 165 Put,2,MRSH,Short Put,,$165.0,,,,,38,,"Feb 20, 26",$238.65,"$33,000",6.95%
+"Nov 26, 25","Feb 20, 26",CLOSED,GOOGL 255 Put,2,GOOGL,Short Put,,$255.0,,,,,86,,"Feb 9, 26",$824.61,"$51,000",7.87%
+"Jan 13, 26","Feb 27, 26",EXPIRED,NU 14 Put,5,NU,Short Put,,$14.0,,,,,45,,"Feb 27, 26",$76.63,"$7,000",8.88%
+"Jan 13, 26","Feb 27, 26",EXPIRED,SPGI 375 Put,1,SPGI,Short Put,,$375.0,,,,,45,,"Feb 27, 26",$257.33,"$37,500",5.57%
+"Jan 2, 26","Mar 20, 26",ASSIGNED,FIG 30 Put,5,FIG,Short Put,,$30.0,,,,,77,,"Mar 20, 26","-$2,438.37","$15,000",
+"Jan 13, 26","Mar 20, 26",ASSIGNED,FIG 25 Put,5,FIG,Short Put,,$25.0,,,,,66,,"Mar 20, 26",-$308.37,"$12,500",
+"Jan 22, 26","Mar 20, 26",ASSIGNED,TTAN 75 Put,2,TTAN,Short Put,,$75.0,,,,,57,,"Mar 20, 26","-$1,107.35","$15,000",
+"Jan 13, 26","Mar 20, 26",EXPIRED,COST 860 Put,1,COST,Short Put,,$860.0,,,,,66,,"Mar 20, 26",$959.33,"$86,000",6.17%
+"Jan 2, 26","Mar 20, 26",CLOSED,AVGO 290 Put,2,AVGO,Short Put,,$290.0,,,,,77,,"Mar 20, 26","$1,860.60","$58,000",15.21%
+"Nov 26, 25","Mar 20, 26",EXPIRED,AXP 280 Put,2,AXP,Short Put,,$280.0,,,,,114,,"Mar 20, 26",$552.66,"$56,000",3.16%
+"Nov 26, 25","Mar 20, 26",EXPIRED,V 285 Put,2,V,Short Put,,$285.0,,,,,114,,"Mar 20, 26",$607.66,"$57,000",3.41%
+"Feb 13, 26","Mar 20, 26",CLOSED,FDS 180 Put,1,FDS,Short Put,,$180.0,,,,,35,,"Mar 20, 26",$602.31,"$18,000",34.90%
+"Jan 2, 26","Apr 17, 26",CLOSED,GOOGL 390 Call,1,GOOGL,Covered Call,,$390.0,,,,,105,,"Mar 3, 26",$307.31,,
+"Jan 2, 26","Apr 17, 26",CLOSED,FIG 50 Call,4,FIG,Covered Call,,$50.0,,,,,105,,"Feb 17, 26",$773.20,,
+"Jan 2, 26","Apr 17, 26",CLOSED,AMZN 280 Call,1,AMZN,Covered Call,,$280.0,,,,,105,,"Feb 17, 26",$226.31,,
+"Jan 2, 26","Apr 17, 26",CLOSED,JPM 275 Put,1,JPM,Short Put,,$275.0,,,,,105,,"Apr 13, 26",$383.31,"$27,500",5.04%
+"Jan 22, 26","Apr 17, 26",CLOSED,NFLX 75 Put,3,NFLX,Short Put,,$75.0,,,,,85,,"Apr 6, 26",$606.90,"$22,500",13.30%
+"Jan 2, 26","Apr 17, 26",CLOSED,JPM 255 Put,1,JPM,Short Put,,$255.0,,,,,105,,"Apr 15, 26",$220.31,"$25,500",3.06%
+"Feb 11, 26","Apr 17, 26",CLOSED,MS 155 Put,1,MS,Short Put,,$155.0,,,,,65,,"Apr 13, 26",$279.31,"$15,500",10.78%
+"Feb 6, 26","May 15, 26",CLOSED,MSFT 480 Call,2,MSFT,Covered Call,,$480.0,,,,,98,,"Mar 27, 26",$822.60,,
+"Feb 6, 26","May 15, 26",CLOSED,AMZN 245 Call,1,AMZN,Covered Call,,$245.0,,,,,98,,"Apr 17, 26","-$1,224.34",,
+"Feb 6, 26","May 15, 26",CLOSED,AMZN 260 Call,2,AMZN,Covered Call,,$260.0,,,,,98,,"May 4, 26","-$2,156.69",,
+"Jan 2, 26","May 15, 26",CLOSED,AMZN 300 Call,1,AMZN,Covered Call,,$300.0,,,,,133,,"Mar 27, 26",$232.31,,
+"Feb 11, 26","May 15, 26",CLOSED,META 790 Call,1,META,Covered Call,,$790.0,,,,,93,,"Mar 27, 26","$1,199.31",,
+"Feb 11, 26","May 15, 26",CLOSED,GOOGL 385 Call,1,GOOGL,Covered Call,,$385.0,,,,,93,,"Mar 27, 26",$347.31,,
+"Feb 13, 26","May 15, 26",CLOSED,UBER 85 Call,3,UBER,Covered Call,,$85.0,,,,,91,,"May 14, 26",$432.91,,
+"Feb 17, 26","May 15, 26",CLOSED,AMZN 245 Call,1,AMZN,Covered Call,,$245.0,,,,,87,,"Apr 17, 26","-$1,349.35",,
+"Mar 27, 26","May 15, 26",CLOSED,NU 17 Call,7,NU,Covered Call,,$17.0,,,,,49,,"May 14, 26",$107.13,,
+"Mar 27, 26","May 15, 26",CLOSED,BABA 170 Call,3,BABA,Covered Call,,$170.0,,,,,49,,"May 15, 26",$129.98,,
+"Jan 22, 26","May 15, 26",CLOSED,META 600 Put,1,META,Short Put,,$600.0,,,,,113,,"May 14, 26","$3,064.31","$60,000",16.64%
+"Jan 22, 26","May 15, 26",CLOSED,META 580 Put,1,META,Short Put,,$580.0,,,,,113,,"May 14, 26","$2,429.31","$58,000",13.65%
+"Feb 6, 26","May 15, 26",CLOSED,AMZN 170 Put,2,AMZN,Short Put,,$170.0,,,,,98,,"Apr 22, 26",$722.60,"$34,000",10.34%
+"Feb 6, 26","May 15, 26",CLOSED,AMZN 190 Put,1,AMZN,Short Put,,$190.0,,,,,98,,"Apr 22, 26",$788.31,"$19,000",20.19%
+"Feb 6, 26","May 15, 26",CLOSED,MSFT 360 Put,2,MSFT,Short Put,,$360.0,,,,,98,,"May 1, 26","$1,926.60","$72,000",11.63%
+"Feb 6, 26","May 15, 26",CLOSED,MSFT 340 Put,2,MSFT,Short Put,,$340.0,,,,,98,,"Apr 30, 26","$1,150.60","$68,000",7.44%
+"Feb 9, 26","May 15, 26",CLOSED,GOOGL 270 Put,1,GOOGL,Short Put,,$270.0,,,,,95,,"Apr 30, 26",$507.31,"$27,000",8.57%
+"Feb 9, 26","May 15, 26",CLOSED,GOOGL 265 Put,1,GOOGL,Short Put,,$265.0,,,,,95,,"Apr 30, 26",$443.31,"$26,500",7.63%
+"Feb 20, 26","May 15, 26",CLOSED,DASH 130 Put,1,DASH,Short Put,,$130.0,,,,,84,,"May 8, 26",$366.31,"$13,000",13.36%
+"Feb 20, 26","May 15, 26",CLOSED,APP 320 Put,1,APP,Short Put,,$320.0,,,,,84,,"May 8, 26","$1,858.31","$32,000",27.53%
+"Feb 20, 26","May 15, 26",CLOSED,DDOG 80 Put,2,DDOG,Short Put,,$80.0,,,,,84,,"May 8, 26",$346.60,"$16,000",10.27%
+"Mar 6, 26","May 15, 26",ASSIGNED,NU 13 Put,5,NU,Short Put,,$13.0,,,,,70,,"May 15, 26",-$118.36,"$6,500",
+"Jan 2, 26","Jun 18, 26",CLOSED,BABA 210 Call,1,BABA,Covered Call,,$210.0,,,,,167,,"Mar 27, 26",$398.31,,
+"Mar 6, 26","Jun 18, 26",CLOSED,VEEV 260 Call,1,VEEV,Covered Call,,$260.0,,,,,104,,"Jun 8, 26",$257.31,,
+"Mar 27, 26","Jun 18, 26",CLOSED,AVGO 410 Call,1,AVGO,Covered Call,,$410.0,,,,,83,,"Jun 4, 26","-$1,196.34",,
+"Nov 17, 25","Jun 18, 26",CLOSED,AXP 270 Put,1,AXP,Short Put,,$270.0,,,,,213,,"May 18, 26",$468.66,"$27,000",3.48%
+"Jan 2, 26","Jun 18, 26",CLOSED,GOOGL 230 Put,2,GOOGL,Short Put,,$230.0,,,,,167,,"Apr 30, 26",$790.60,"$46,000",5.32%
+"Nov 14, 25","Jun 18, 26",CLOSED,GOOGL 215 Put,1,GOOGL,Short Put,,$215.0,,,,,216,,"Apr 13, 26",$809.31,"$21,500",9.16%
+"Feb 26, 26","Jun 18, 26",EXPIRED,VEEV 145 Put,1,VEEV,Short Put,,$145.0,,,,,112,,"Jun 18, 26",$547.33,"$14,500",12.30%
+"Feb 26, 26","Jun 18, 26",ASSIGNED,VEEV 155 Put,1,VEEV,Short Put,,$155.0,,,,,112,,"Jun 18, 26",$609.93,"$15,500",
+"Feb 26, 26","Jun 18, 26",CLOSED,VEEV 160 Put,1,VEEV,Short Put,,$160.0,,,,,112,,"Jun 5, 26",$839.66,"$16,000",19.35%
+"Apr 7, 26","Jun 18, 26",CLOSED,AVGO 290 Put,1,AVGO,Short Put,,$290.0,,,,,72,,"May 14, 26","$1,223.63","$29,000",41.62%
+"Feb 11, 26","Jul 17, 26",CLOSED,AON 280 Put,1,AON,Short Put,,$280.0,,,,,156,,"Jun 15, 26",$878.66,"$28,000",9.24%
+"May 18, 26","Jul 17, 26",CLOSED,MS 165 Put,1,MS,Short Put,,$165.0,,,,,60,,"Jun 1, 26",$140.31,"$16,500",22.17%
+"May 19, 26","Jul 17, 26",CLOSED,MS 170 Put,2,MS,Short Put,,$170.0,,,,,59,,"Jun 1, 26",$423.29,"$34,000",34.95%
+"May 22, 26","Jul 17, 26",CLOSED,NOW 75 Put,1,NOW,Short Put,,$75.0,,,,,56,,"Jul 7, 26",$97.32,"$7,500",10.30%
+"May 27, 26","Jul 17, 26",ASSIGNED,NFLX 80 Put,2,NFLX,Short Put,,$80.0,,,,,51,,"Jul 17, 26","-$1,853.35","$16,000",
+"May 27, 26","Jul 17, 26",CLOSED,MRSH 145 Put,1,MRSH,Short Put,,$145.0,,,,,51,,"Jun 29, 26",$175.31,"$14,500",13.37%
+"Jun 12, 26","Jul 17, 26",ASSIGNED,NFLX 75 Put,1,NFLX,Short Put,,$75.0,,,,,35,,"Jul 17, 26",-$423.67,"$7,500",
+"Jun 4, 26","Jul 24, 26",CLOSED,GOOGL 430 Call,1,GOOGL,Covered Call,,$430.0,,,,,50,,"Jul 20, 26",$334.32,,
+"Jun 11, 26","Jul 31, 26",8,AMZN 280 Call,1,AMZN,Covered Call,$224.33,$280.0,$233.74,19.79%,🟢 Safe,,50,,,,,
+"Jun 12, 26","Jul 31, 26",CLOSED,HOOD 78 Put,1,HOOD,Short Put,,$78.0,,,,,49,,"Jul 2, 26",$314.32,"$7,800",73.54%
+"Jun 12, 26","Jul 31, 26",CLOSED,HOOD 76 Put,1,HOOD,Short Put,,$76.0,,,,,49,,"Jul 21, 26",$294.32,"$7,600",36.24%
+"Jun 12, 26","Jul 31, 26",CLOSED,HOOD 70 Put,1,HOOD,Short Put,,$70.0,,,,,49,,"Jul 13, 26",$174.32,"$7,000",29.32%
+"May 27, 26","Aug 21, 26",CLOSED,BX 95 Put,2,BX,Short Put,,$95.0,,,,,86,,"Jul 6, 26",$258.63,"$19,000",12.42%
+"May 27, 26","Aug 21, 26",29,KKR 75 Put,2,KKR,Short Put,$268.65,$75.0,$95.64,21.58%,✅ Very Safe,"$15,000",86,7.60%,,,,
+"May 27, 26","Aug 21, 26",CLOSED,ADP 195 Put,1,ADP,Short Put,,$195.0,,,,,86,,"Jul 1, 26",$401.65,"$19,500",21.48%
+"Apr 23, 26","Aug 21, 26",CLOSED,NOW 60 Put,1,NOW,Short Put,,$60.0,,,,,120,,"Jun 1, 26",$184.31,"$6,000",28.75%
+"Apr 23, 26","Aug 21, 26",CLOSED,NOW 65 Put,1,NOW,Short Put,,$65.0,,,,,120,,"Jun 1, 26",$282.31,"$6,500",40.65%
+"Apr 23, 26","Aug 21, 26",CLOSED,NOW 70 Put,1,NOW,Short Put,,$70.0,,,,,120,,"Jun 1, 26",$394.31,"$7,000",52.72%
+"May 8, 26","Aug 21, 26",CLOSED,NET 170 Put,1,NET,Short Put,,$170.0,,,,,105,,"Jun 1, 26",$963.63,"$17,000",86.21%
+"May 8, 26","Aug 21, 26",CLOSED,NET 155 Put,1,NET,Short Put,,$155.0,,,,,105,,"Jun 4, 26",$768.63,"$15,500",67.04%
+"May 8, 26","Aug 21, 26",CLOSED,NET 150 Put,1,NET,Short Put,,$150.0,,,,,105,,"Jun 29, 26",$671.64,"$15,000",31.43%
+"May 8, 26","Aug 21, 26",CLOSED,NET 140 Put,1,NET,Short Put,,$140.0,,,,,105,,"Jul 6, 26",$537.65,"$14,000",23.76%
+"May 14, 26","Aug 21, 26",CLOSED,META 550 Put,2,META,Short Put,,$550.0,,,,,99,,"Jul 14, 26","$2,377.24","$110,000",12.93%
+"May 14, 26","Aug 21, 26",CLOSED,MSFT 350 Put,1,MSFT,Short Put,,$350.0,,,,,99,,"Jun 1, 26",$435.64,"$35,000",25.24%
+"May 18, 26","Aug 21, 26",29,GOOGL 320 Put,2,GOOGL,Short Put,$988.62,$320.0,$318.58,-0.45%,🔴 ITM,"$64,000",95,5.93%,,,,
+"May 18, 26","Aug 21, 26",CLOSED,AXP 270 Put,1,AXP,Short Put,,$270.0,,,,,95,,"Jun 29, 26",$384.66,"$27,000",12.38%
+"May 18, 26","Aug 21, 26",CLOSED,V 300 Put,1,V,Short Put,,$300.0,,,,,95,,"Jul 2, 26",$398.67,"$30,000",10.78%
+"May 18, 26","Aug 21, 26",CLOSED,NU 11 Put,8,NU,Short Put,,$11.0,,,,,95,,"Jul 1, 26",$282.51,"$8,800",26.63%
+"Jun 1, 26","Aug 21, 26",29,MSFT 395 Put,1,MSFT,Short Put,$683.31,$395.0,$381.35,-3.58%,🔴 ITM,"$39,500",81,7.80%,,,,
+"Jun 1, 26","Aug 21, 26",29,SPGI 380 Put,1,SPGI,Short Put,$809.31,$380.0,$419.87,9.50%,⚠️ Alert,"$38,000",81,9.60%,,,,
+"Jun 1, 26","Aug 21, 26",CLOSED,UBER 65 Put,1,UBER,Short Put,,$65.0,,,,,81,,"Jul 13, 26",$103.67,"$6,500",13.86%
+"Jun 1, 26","Aug 21, 26",29,UBER 62.5 Put,1,UBER,Short Put,$138.33,$62.5,$68.55,8.83%,⚠️ Alert,"$6,250",81,9.97%,,,,
+"Jun 1, 26","Aug 21, 26",29,AMZN 220 Put,1,AMZN,Short Put,$330.33,$220.0,$233.74,5.88%,⚠️ Alert,"$22,000",81,6.77%,,,,
+"Jun 1, 26","Aug 21, 26",CLOSED,MA 450 Put,1,MA,Short Put,,$450.0,,,,,81,,"Jul 2, 26",$608.65,"$45,000",15.93%
+"Jun 1, 26","Aug 21, 26",29,CME 230 Put,1,CME,Short Put,$359.33,$230.0,$253.46,9.26%,⚠️ Alert,"$23,000",81,7.04%,,,,
+"Jun 4, 26","Aug 21, 26",29,MSFT 370 Put,1,MSFT,Short Put,$597.31,$370.0,$381.35,2.98%,❗ Danger,"$37,000",78,7.55%,,,,
+"Jun 4, 26","Aug 21, 26",CLOSED,MSFT 530 Call,1,MSFT,Covered Call,,$530.0,,,,,78,,"Jul 23, 26",$414.32,,
+"Jun 4, 26","Aug 21, 26",CLOSED,META 800 Call,1,META,Covered Call,,$800.0,,,,,78,,"Jun 11, 26",$538.64,,
+"Jun 4, 26","Aug 21, 26",29,UBER 90 Call,2,UBER,Covered Call,$208.65,$90.0,$68.55,31.29%,✅ Very Safe,,78,,,,,
+"Jun 11, 26","Aug 21, 26",29,META 750 Call,1,META,Covered Call,$449.33,$750.0,$605.38,23.89%,✅ Very Safe,,71,,,,,
+"Jul 20, 26","Aug 28, 26",36,ADSK 270 Call,1,ADSK,Covered Call,$204.34,$270.0,$204.71,31.89%,✅ Very Safe,,39,,,,,
+"Nov 14, 25","Sep 18, 26",CLOSED,JPM 240 Put,1,JPM,Short Put,,$240.0,,,,,308,,"Jun 1, 26",$578.66,"$24,000",4.42%
+"Apr 17, 26","Sep 18, 26",CLOSED,AMZN 310 Call,2,AMZN,Covered Call,,$310.0,,,,,154,,"Jul 23, 26","$1,251.29",,
+"May 4, 26","Sep 18, 26",CLOSED,AMZN 300 Call,2,AMZN,Covered Call,,$300.0,,,,,137,,"Jun 11, 26","$2,033.24",,
+"May 11, 26","Sep 18, 26",CLOSED,SHOP 85 Put,2,SHOP,Short Put,,$85.0,,,,,130,,"Jul 6, 26",$729.29,"$17,000",27.96%
+"May 11, 26","Sep 18, 26",CLOSED,SHOP 80 Put,2,SHOP,Short Put,,$80.0,,,,,130,,"Jul 7, 26",$637.30,"$16,000",25.51%
+"May 11, 26","Sep 18, 26",57,HUBS 150 Put,2,HUBS,Short Put,"$2,338.60",$150.0,$192.67,22.15%,✅ Very Safe,"$30,000",130,21.89%,,,,
+"May 19, 26","Sep 18, 26",CLOSED,BABA 185 Call,2,BABA,Covered Call,,$185.0,,,,,122,,"Jun 30, 26",$518.58,,
+"May 21, 26","Sep 18, 26",57,INTU 250 Put,1,INTU,Short Put,"$1,399.30",$250.0,$280.91,11.00%,🟢 Safe,"$25,000",120,17.02%,,,,
+"May 21, 26","Sep 18, 26",57,INTU 240 Put,1,INTU,Short Put,"$1,099.30",$240.0,$280.91,14.56%,🟢 Safe,"$24,000",120,13.93%,,,,
+"May 21, 26","Sep 18, 26",57,INTU 230 Put,1,INTU,Short Put,$899.31,$230.0,$280.91,18.12%,🟢 Safe,"$23,000",120,11.89%,,,,
+"May 21, 26","Sep 18, 26",57,NVDA 195 Put,1,NVDA,Short Put,$969.31,$195.0,$208.11,6.30%,⚠️ Alert,"$19,500",120,15.12%,,,,
+"May 21, 26","Sep 18, 26",57,NVDA 190 Put,1,NVDA,Short Put,$819.31,$190.0,$208.11,8.70%,⚠️ Alert,"$19,000",120,13.12%,,,,
+"Jun 4, 26","Sep 18, 26",57,AVGO 470 Call,1,AVGO,Covered Call,"$2,621.27",$470.0,$390.45,20.37%,✅ Very Safe,,106,,,,,
+"Jun 4, 26","Sep 18, 26",57,AVGO 330 Put,1,AVGO,Short Put,"$1,264.30",$330.0,$390.45,15.48%,🟢 Safe,"$33,000",106,13.19%,,,,
+"Jun 5, 26","Sep 18, 26",57,SNPS 400 Put,1,SNPS,Short Put,"$1,816.29",$400.0,$372.59,-7.36%,🔴 Deep ITM,"$40,000",105,15.78%,,,,
+"Jun 11, 26","Sep 18, 26",57,VEEV 220 Call,1,VEEV,Covered Call,$337.33,$220.0,$180.05,22.19%,✅ Very Safe,,99,,,,,
+"Jul 13, 26","Sep 18, 26",57,FIG 35 Call,8,FIG,Covered Call,$906.70,$35.0,$20.06,74.48%,✅ Very Safe,,67,,,,,
+"Jul 14, 26","Sep 18, 26",57,FIG 40 Call,6,FIG,Covered Call,$584.00,$40.0,$20.06,99.40%,✅ Very Safe,,66,,,,,
+"Jul 14, 26","Sep 18, 26",57,UBER 60 Put,1,UBER,Short Put,$91.34,$60.0,$68.55,12.47%,🟢 Safe,"$6,000",66,8.42%,,,,
+"Jul 20, 26","Sep 18, 26",57,VEEV 250 Call,1,VEEV,Covered Call,$317.34,$250.0,$180.05,38.85%,✅ Very Safe,,60,,,,,
+"Jul 20, 26","Sep 18, 26",57,TTAN 120 Call,1,TTAN,Covered Call,$122.34,$120.0,$68.33,75.62%,✅ Very Safe,,60,,,,,
+"Jul 20, 26","Sep 18, 26",57,VEEV 260 Call,1,VEEV,Covered Call,$239.34,$260.0,$180.05,44.40%,✅ Very Safe,,60,,,,,
+"Jul 21, 26","Sep 18, 26",57,GWRE 110 Put,1,GWRE,Short Put,$269.34,$110.0,$132.05,16.70%,🟢 Safe,"$11,000",59,15.15%,,,,
+"Jul 21, 26","Sep 18, 26",57,GWRE 100 Put,1,GWRE,Short Put,$137.34,$100.0,$132.05,24.27%,✅ Very Safe,"$10,000",59,8.50%,,,,
+"Jul 21, 26","Sep 18, 26",57,VEEV 155 Put,1,VEEV,Short Put,$299.34,$155.0,$180.05,13.91%,🟢 Safe,"$15,500",59,11.95%,,,,
+"Jul 21, 26","Sep 18, 26",57,VEEV 145 Put,1,VEEV,Short Put,$174.34,$145.0,$180.05,19.47%,🟢 Safe,"$14,500",59,7.44%,,,,
+"Jul 21, 26","Sep 18, 26",57,FIG 15 Put,5,FIG,Short Put,$311.68,$15.0,$20.06,25.22%,✅ Very Safe,"$7,500",59,25.71%,,,,
+"Jul 21, 26","Sep 18, 26",57,FIG 12.5 Put,5,FIG,Short Put,$106.68,$12.5,$20.06,37.69%,✅ Very Safe,"$6,250",59,10.56%,,,,
+"Jul 21, 26","Sep 18, 26",57,TTAN 55 Put,2,TTAN,Short Put,$240.68,$55.0,$68.33,19.51%,🟢 Safe,"$11,000",59,13.54%,,,,
+"Jul 13, 26","Oct 16, 26",85,TTAN 110 Call,2,TTAN,Covered Call,$678.65,$110.0,$68.33,60.98%,✅ Very Safe,,95,,,,,
+"Jul 14, 26","Oct 16, 26",85,TTAN 115 Call,1,TTAN,Covered Call,$279.34,$115.0,$68.33,68.30%,✅ Very Safe,,94,,,,,
+"Jul 20, 26","Nov 20, 26",120,NFLX 55 Put,2,NFLX,Short Put,$272.67,$55.0,$69.01,20.30%,✅ Very Safe,"$11,000",123,7.36%,,,,
+"Jul 20, 26","Nov 20, 26",120,NFLX 85 Call,3,NFLX,Covered Call,$522.99,$85.0,$69.01,23.17%,✅ Very Safe,,123,,,,,
+"Jul 23, 26","Nov 20, 26",120,GOOGL 275 Put,1,GOOGL,Short Put,$734.32,$275.0,$318.58,13.68%,🟢 Safe,"$27,500",120,8.12%,,,,
+"Jul 23, 26","Nov 20, 26",120,AMZN 195 Put,1,AMZN,Short Put,$544.32,$195.0,$233.74,16.57%,🟢 Safe,"$19,500",120,8.49%,,,,
+"Jun 12, 26","Jan 21, 28",547,HOOD 70 Put,5,HOOD,Short Put,"$8,312.45",$70.0,$102.63,31.79%,✅ Very Safe,"$35,000",588,14.74%,,,,
+"Jun 16, 26","Jan 21, 28",547,ADSK 170 Put,3,ADSK,Short Put,"$7,407.82",$170.0,$204.71,16.96%,🟢 Safe,"$51,000",584,9.08%,,,,
+"Jun 17, 26","Jan 21, 28",547,META 480 Put,1,META,Short Put,"$5,312.22",$480.0,$605.38,20.71%,✅ Very Safe,"$48,000",583,6.93%,,,,
+"Jul 14, 26","Jan 21, 28",547,MSFT 310 Put,2,MSFT,Short Put,"$5,360.55",$310.0,$381.35,18.71%,🟢 Safe,"$62,000",556,5.68%,,,,
+"Jul 21, 26","Jan 21, 28",547,FIG 10 Put,40,FIG,Short Put,"$6,893.32",$10.0,$20.06,50.15%,✅ Very Safe,"$40,000",549,11.46%,,,,
+"Jul 21, 26","Jan 21, 28",547,TTAN 40 Put,5,TTAN,Short Put,"$2,496.62",$40.0,$68.33,41.46%,✅ Very Safe,"$20,000",549,8.30%,,,,
+"Jul 21, 26","Jan 21, 28",547,FIG 12.5 Put,10,FIG,Short Put,"$2,743.31",$12.5,$20.06,37.69%,✅ Very Safe,"$12,500",549,14.59%,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,# in Play,,48,
+,,,,,,,,,,,,,,,Premium In Play,,"$64,185",
+,,,,,,,,,,,,,,,Risk Level (Maximum),,"$866,500",
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,# Closed/Assigned,,100,
+,,,,,,,,,,,,,,,Wins,,88,
+,,,,,,,,,,,,,,,Losses,,12,
+,,,,,,,,,,,,,,,Win Ratio,,88%,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,Total Gains,,"$54,401.11",
+,,,,,,,,,,,,,,,Total Losses,,"-$16,661.20",
+,,,,,,,,,,,,,,,Gain/Loss,,"$37,739.91",
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,Avg Gain,,$618.19,
+,,,,,,,,,,,,,,,Avg Loss,,"-$1,388.43",

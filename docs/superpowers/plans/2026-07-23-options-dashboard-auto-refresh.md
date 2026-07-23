@@ -6,7 +6,7 @@
 
 **Architecture:** A Python fetcher authenticates to Google via OAuth (`spreadsheets.readonly`), reads the one Sheet with `FORMATTED_VALUE`, normalizes rows into trade objects, and atomically writes `trades.json`. The existing React/Vite dashboard fetches `trades.json` on mount and every 10 min, remounting only when the data actually changes. Two launchd jobs run the fetcher on an interval and keep a static server serving the built app.
 
-**Tech Stack:** Python 3 (`google-api-python-client`, `google-auth-oauthlib`, `pytest`); React 18 + Vite 5 + Tailwind CSS v4 + recharts + lucide-react + vitest; macOS launchd.
+**Tech Stack:** Python 3 managed with `uv` (`google-api-python-client`, `google-auth-oauthlib`, `pytest`); React 18 + Vite 5 + Tailwind CSS v4 + recharts + lucide-react + vitest; macOS launchd.
 
 ## Global Constraints
 
@@ -17,6 +17,7 @@
 - Trade-object field names must match exactly what the component reads: `acquired, expires, status, ticker, contracts, type, premium, strike, price, buffer, riskLevel, riskCategory, duration, estYield, closedOn, gainLoss, capital, realYield`.
 - `riskCategory` values must be emoji-free and one of: `Very Safe, Safe, Alert, Danger, ITM, Deep ITM`.
 - The sample fixture is the real export at `/Users/eduardooliveira/Downloads/Short Puts and Covered Calls - Master (66).csv` — 148 data rows.
+- The Python fetcher's environment is managed exclusively with `uv` (`pyproject.toml` + `uv.lock`, both committed). Never use `pip`, `requirements.txt`, or a hand-managed `venv`. Run Python via `uv run …`, which auto-syncs from the lockfile before executing.
 
 ---
 
@@ -26,7 +27,7 @@ Builds the fetcher package and the pure row→trade-object normalizer, tested ag
 
 **Files:**
 - Create: `fetcher/normalize.py`
-- Create: `fetcher/requirements.txt`
+- Create: `fetcher/pyproject.toml` + `fetcher/uv.lock` (via `uv init`/`uv add`)
 - Create: `fetcher/tests/__init__.py` (empty)
 - Create: `fetcher/tests/fixtures/sample_master.csv` (copy of the real export)
 - Test: `fetcher/tests/test_normalize.py`
@@ -45,14 +46,16 @@ touch fetcher/tests/__init__.py
 cp "/Users/eduardooliveira/Downloads/Short Puts and Covered Calls - Master (66).csv" fetcher/tests/fixtures/sample_master.csv
 ```
 
-Create `fetcher/requirements.txt`:
+Initialize the uv project and add dependencies (creates `pyproject.toml` + `uv.lock`):
 
+```bash
+cd fetcher
+uv init --bare --name options-fetcher
+uv add google-api-python-client google-auth-oauthlib google-auth
+uv add --dev pytest
 ```
-google-api-python-client>=2.100
-google-auth-oauthlib>=1.2
-google-auth>=2.30
-pytest>=8.0
-```
+
+`uv init --bare` creates a `pyproject.toml` with no sample module. `uv add` resolves and pins into `uv.lock`. Confirm the resulting `pyproject.toml` lists the three Google libraries under `[project.dependencies]` and `pytest` under the dev group.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -70,8 +73,13 @@ def load():
         return normalize_csv_text(f.read())
 
 
-def by(trades, ticker, strike, typ):
-    return next(t for t in trades if t["ticker"] == ticker and t["strike"] == strike and t["type"] == typ)
+def by(trades, ticker, strike, typ, status=None):
+    # status disambiguates the two AMZN 280 Covered Calls (one CLOSED, one IN PLAY).
+    return next(
+        t for t in trades
+        if t["ticker"] == ticker and t["strike"] == strike and t["type"] == typ
+        and (status is None or t["status"] == status)
+    )
 
 
 def test_row_count_is_148_and_no_summary_rows():
@@ -96,7 +104,7 @@ def test_closed_short_put_fields():
 
 
 def test_in_play_covered_call_fields():
-    t = by(load(), "AMZN", 280.0, "Covered Call")
+    t = by(load(), "AMZN", 280.0, "Covered Call", status="IN PLAY")
     assert t["status"] == "IN PLAY"
     assert t["premium"] == 224.33
     assert t["price"] == 233.74
@@ -130,7 +138,7 @@ def test_negative_gainloss_parses():
 
 - [ ] **Step 3: Run the test to verify it fails**
 
-Run: `cd fetcher && python -m pytest tests/test_normalize.py -q`
+Run: `cd fetcher && uv run pytest tests/test_normalize.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'normalize'`.
 
 - [ ] **Step 4: Write the implementation**
@@ -142,11 +150,14 @@ Create `fetcher/normalize.py`:
 import csv
 import re
 
-# 0-based column indices in the "Master" sheet.
+# 0-based column indices in the "Master" sheet. NOTE: the sheet's data places
+# the emoji risk *category* in col 11 and the dollar *risk level* in col 12 —
+# positionally opposite the "Risk Level"/"Risk" header labels. Indices follow
+# the data, not the headers.
 COL = {
     "acquired": 0, "expires": 1, "days": 2, "position": 3, "contracts": 4,
     "ticker": 5, "type": 6, "premium": 7, "strike": 8, "price": 9,
-    "buffer": 10, "risk_level": 11, "risk": 12, "duration": 13,
+    "buffer": 10, "risk": 11, "risk_level": 12, "duration": 13,
     "est_yield": 14, "closed_on": 15, "gain_loss": 16, "capital": 17,
     "real_yield": 18,
 }
@@ -236,13 +247,13 @@ def normalize_csv_text(text):
 
 - [ ] **Step 5: Run the test to verify it passes**
 
-Run: `cd fetcher && python -m pytest tests/test_normalize.py -q`
+Run: `cd fetcher && uv run pytest tests/test_normalize.py -q`
 Expected: PASS — 6 passed.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add fetcher/normalize.py fetcher/requirements.txt fetcher/tests/
+git add fetcher/normalize.py fetcher/pyproject.toml fetcher/uv.lock fetcher/tests/
 git commit -m "feat(fetcher): sheet row normalizer with tests against sample export"
 ```
 
@@ -292,7 +303,7 @@ def test_write_trades_refuses_empty_and_keeps_existing(tmp_path):
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd fetcher && python -m pytest tests/test_write.py -q`
+Run: `cd fetcher && uv run pytest tests/test_write.py -q`
 Expected: FAIL — `ModuleNotFoundError: No module named 'fetch_trades'`.
 
 - [ ] **Step 3: Write the implementation**
@@ -395,10 +406,10 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd fetcher && python -m pytest tests/test_write.py -q`
+Run: `cd fetcher && uv run pytest tests/test_write.py -q`
 Expected: PASS — 2 passed.
 
-Note: `test_write.py` imports `fetch_trades`, which imports Google libraries. If they are not installed yet, first run `pip install -r fetcher/requirements.txt` (ideally in a venv).
+Note: `test_write.py` imports `fetch_trades`, which imports Google libraries. `uv run` auto-syncs the environment from `uv.lock` before running, so no separate install step is needed.
 
 - [ ] **Step 5: Manual OAuth verification (one time)**
 
@@ -406,10 +417,10 @@ This proves the live path end-to-end. Requires `fetcher/credentials.json` (an OA
 
 ```bash
 cd fetcher
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-SPREADSHEET_ID="<paste-sheet-id>" OUTPUT_PATH="trades.json" python fetch_trades.py
+SPREADSHEET_ID="<paste-sheet-id>" OUTPUT_PATH="trades.json" uv run python fetch_trades.py
 ```
+
+(`uv run` syncs the environment from `uv.lock` on first invocation, so no separate install/activate step is needed.)
 
 Expected: a browser opens for consent the first time; then `OK: wrote 148 trades to trades.json`, `token.json` is created, and `trades.json` contains the array. Re-running does NOT reopen the browser.
 
@@ -728,13 +739,17 @@ Create `scripts/run_fetch.sh` (writes `trades.json` into the served `dist/`):
 #!/bin/bash
 set -euo pipefail
 ROOT="/Users/eduardooliveira/projects/options-dashboard"
+# launchd runs with a minimal PATH; use uv's absolute path.
+# Find yours with `command -v uv` (e.g. /opt/homebrew/bin/uv or ~/.local/bin/uv).
+UV="/opt/homebrew/bin/uv"
 cd "$ROOT/fetcher"
 export SPREADSHEET_ID="<paste-sheet-id>"
 export SHEET_RANGE="Master"
 export OUTPUT_PATH="$ROOT/web/dist/trades.json"
 export CREDENTIALS_PATH="$ROOT/fetcher/credentials.json"
 export TOKEN_PATH="$ROOT/fetcher/token.json"
-exec "$ROOT/fetcher/.venv/bin/python" fetch_trades.py
+# `uv run` auto-syncs from uv.lock before executing, so the job self-heals if the env drifts.
+exec "$UV" run --project "$ROOT/fetcher" python fetch_trades.py
 ```
 
 ```bash
@@ -803,11 +818,12 @@ Auto-refreshing options-trading dashboard fed from one Google Sheet.
 ## One-time setup
 1. Google Cloud Console: enable the **Google Sheets API**, create an OAuth
    **Desktop app** client, download it to `fetcher/credentials.json`.
-2. `cd fetcher && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
-3. First consent (opens a browser once):
-   `SPREADSHEET_ID="<id>" OUTPUT_PATH="../web/dist/trades.json" python fetch_trades.py`
-   (Build the web app first so `web/dist/` exists — see below.)
-4. `cd web && npm install && npm run build`
+2. `cd fetcher && uv sync` (creates the environment from `uv.lock`; optional —
+   `uv run` also syncs on demand).
+3. `cd web && npm install && npm run build` (creates `web/dist/`, which the
+   next step writes into).
+4. First consent (opens a browser once), run from `fetcher/`:
+   `SPREADSHEET_ID="<id>" OUTPUT_PATH="../web/dist/trades.json" uv run python fetch_trades.py`
 5. Put your Sheet ID into `scripts/run_fetch.sh` (SPREADSHEET_ID).
 
 ## Run it (launchd)
