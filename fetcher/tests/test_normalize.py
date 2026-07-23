@@ -9,8 +9,13 @@ def load():
         return normalize_csv_text(f.read())
 
 
-def by(trades, ticker, strike, typ):
-    return next(t for t in trades if t["ticker"] == ticker and t["strike"] == strike and t["type"] == typ)
+def by(trades, ticker, strike, typ, status=None):
+    # status disambiguates the two AMZN 280 Covered Calls (one CLOSED, one IN PLAY).
+    return next(
+        t for t in trades
+        if t["ticker"] == ticker and t["strike"] == strike and t["type"] == typ
+        and (status is None or t["status"] == status)
+    )
 
 
 def test_row_count_is_148_and_no_summary_rows():
@@ -35,7 +40,7 @@ def test_closed_short_put_fields():
 
 
 def test_in_play_covered_call_fields():
-    t = by(load(), "AMZN", 280.0, "Covered Call")
+    t = by(load(), "AMZN", 280.0, "Covered Call", status="IN PLAY")
     assert t["status"] == "IN PLAY"
     assert t["premium"] == 224.33
     assert t["price"] == 233.74

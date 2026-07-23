@@ -87,9 +87,7 @@ def _is_data_row(row):
 def normalize_rows(rows):
     if not rows:
         return []
-    trades = [normalize_row(r) for r in rows[1:] if _is_data_row(r)]
-    # IN PLAY rows first (status is None only for malformed rows; CLOSED/ASSIGNED/EXPIRED after).
-    return sorted(trades, key=lambda t: 0 if t["status"] == "IN PLAY" else 1)
+    return [normalize_row(r) for r in rows[1:] if _is_data_row(r)]
 
 
 def normalize_csv_text(text):
