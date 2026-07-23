@@ -10,5 +10,28 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "mypy>=2.3.0",
     "pytest>=9.1.1",
+    "ruff>=0.16.0",
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# pycodestyle/pyflakes (E,F) + isort (I) + bugbear (B) + pyupgrade (UP) +
+# comprehensions (C4) + simplify (SIM). A pragmatic modern baseline.
+select = ["E", "F", "I", "B", "UP", "C4", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may shadow builtins / use assert-heavy style.
+"tests/**" = ["B011"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# Google client libraries ship without type stubs; don't fail on their imports.
+[[tool.mypy.overrides]]
+module = ["googleapiclient.*", "google_auth_oauthlib.*", "google.*"]
+ignore_missing_imports = true
