@@ -1,0 +1,17 @@
+# OAuth secrets — never commit
+fetcher/credentials.json
+fetcher/token.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / Vite
+web/node_modules/
+web/dist/
+
+# Runtime data
+trades.json
+web/public/trades.json
