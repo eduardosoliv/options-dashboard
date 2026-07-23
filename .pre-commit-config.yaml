@@ -1,0 +1,33 @@
+# Local hooks: reuse the project's own pinned tools (uv-managed ruff/mypy,
+# npm-managed biome) so pre-commit runs exactly what you run by hand.
+# Install once:  just hooks   (or: pipx install pre-commit && pre-commit install)
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format (fetcher)
+        entry: bash -c 'cd fetcher && uv run ruff format'
+        language: system
+        files: ^fetcher/.*\.py$
+        pass_filenames: false
+
+      - id: ruff-check
+        name: ruff check (fetcher)
+        entry: bash -c 'cd fetcher && uv run ruff check --fix'
+        language: system
+        files: ^fetcher/.*\.py$
+        pass_filenames: false
+
+      - id: mypy
+        name: mypy (fetcher)
+        entry: bash -c 'cd fetcher && uv run mypy normalize.py fetch_trades.py'
+        language: system
+        files: ^fetcher/.*\.py$
+        pass_filenames: false
+
+      - id: biome
+        name: biome check (web)
+        entry: bash -c 'cd web && npm run format'
+        language: system
+        files: ^web/(src/.*\.(js|jsx|json)|biome\.json|vite\.config\.js)$
+        pass_filenames: false
