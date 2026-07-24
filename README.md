@@ -5,6 +5,8 @@ calls). A small Python service pulls one Google Sheet on a schedule and writes
 `trades.json`; a React dashboard renders it and re-fetches every 10 minutes. No
 tool ever gets access to your whole Google Drive — only the one Sheet you share.
 
+An example of the dashboard overview:
+
 ![Options Dashboard overview — portfolio stats, equity curve, and in-play risk](docs/dashboard-example1.png)
 
 ## How it works
