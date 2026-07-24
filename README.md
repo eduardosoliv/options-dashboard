@@ -19,7 +19,7 @@ Google Sheet (GOOGLEFINANCE keeps in-play quotes live)
    (run on a schedule)                 (atomic write)        (static)   (re-fetch/10 min)
 ```
 
-Three decoupled parts:
+Two decoupled parts:
 
 - **`fetcher/`** — Python (managed with [uv](https://docs.astral.sh/uv/)). Reads
   the Sheet via OAuth, normalizes rows into trade objects, writes `trades.json`
@@ -27,10 +27,11 @@ Three decoupled parts:
   dashboard beats a broken one.
 - **`web/`** — Vite + React + Tailwind v4. Loads `trades.json` on mount and every
   10 minutes; the analytics/charts recompute from that data.
-- **`scripts/`** — optional macOS launchd jobs: one runs the fetcher on a
-  10-minute interval, one serves the built app on `http://localhost:4173`. On
-  other platforms, run `just fetch` on whatever scheduler you prefer (cron,
-  systemd timer, etc.).
+
+To keep the dashboard fresh, run `just fetch` on a schedule with whatever your
+platform provides — cron, a systemd timer, macOS launchd, Windows Task
+Scheduler, etc. — and serve the built `web/dist/` with any static file server
+(`just serve` works for a quick local run).
 
 ## Prerequisites
 
@@ -53,7 +54,6 @@ web/                Vite + React + Tailwind app
   src/TradingDashboard.jsx   the dashboard (reads a tradesData prop)
   src/data.js         trades.json fetch + content hash
   trades-example.json sample data — copy to dist/trades.json to preview
-scripts/            run_fetch.sh + two launchd .plist files
 justfile            task runner (just --list)
 ```
 
@@ -229,13 +229,13 @@ All type-checkers and linters run in **strict** mode:
 ## Troubleshooting
 
 - **Dashboard shows "Could not load trades.json":** the fetcher hasn't produced
-  `web/dist/trades.json` yet. Run `just fetch` (after `just build`), or check
-  `fetch.err.log`.
+  `web/dist/trades.json` yet. Run `just fetch` (after `just build`) and check its
+  output — if you run it on a schedule, look at wherever that scheduler logs stderr.
 - **Browser consent re-appears / token errors:** delete `fetcher/token.json` and
   re-run the step-7 consent command.
 - **`just fetch` fails silently:** it needs a valid `config.toml` at the project
-  root plus `fetcher/credentials.json` + `fetcher/token.json`; check
-  `fetch.err.log`.
+  root plus `fetcher/credentials.json` + `fetcher/token.json`; check the fetcher's
+  stderr output.
 - **Empty/zero trades:** the fetcher refuses to overwrite with an empty result,
   so the last good `trades.json` stays in place; check that the tab name matches
   `sheet_range` in `config.toml`.

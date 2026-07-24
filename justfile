@@ -23,7 +23,7 @@ serve:
 
 # Fetch the sheet once into web/dist/trades.json (reads config.toml at the project root).
 fetch:
-    ./scripts/run_fetch.sh
+    cd fetcher && uv run python fetch_trades.py
 
 # Run all tests (fetcher + web).
 test:
