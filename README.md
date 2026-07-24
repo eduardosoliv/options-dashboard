@@ -117,6 +117,8 @@ your own trades and start tracking. Note the file is meant for Google Sheets:
 opened directly in Excel, the Price column shows `#NAME?` because
 `GOOGLEFINANCE` only exists in Sheets.
 
+![The template freshly imported into Google Sheets — days, buffers, and live prices computed by its formulas](docs/master-template-screenshot.png)
+
 The fetcher reads the tab **by column position**, not by header name — so the
 **order and count of columns must match the table below**, but you can call the
 headers whatever you like. The **first row is skipped** (treated as headers).
