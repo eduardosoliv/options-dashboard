@@ -69,9 +69,9 @@ def _status(days_cell: str) -> str | None:
         return None
     try:
         float(s)  # a number of days remaining -> position is open
-        return "IN PLAY"
     except ValueError:
         return s  # CLOSED / ASSIGNED / EXPIRED
+    return "IN PLAY"
 
 
 def normalize_row(row: list[str]) -> Trade:

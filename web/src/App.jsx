@@ -5,8 +5,10 @@ import TradingDashboard from './TradingDashboard.jsx';
 const REFRESH_MS = 10 * 60 * 1000;
 
 export default function App() {
-  const [state, setState] = useState({ trades: null, sig: null });
-  const [error, setError] = useState(null);
+  const [state, setState] = useState(
+    /** @type {{ trades: object[] | null; sig: string | null }} */ ({ trades: null, sig: null }),
+  );
+  const [error, setError] = useState(/** @type {unknown} */ (null));
 
   useEffect(() => {
     let active = true;

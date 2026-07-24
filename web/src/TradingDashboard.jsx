@@ -1,3 +1,5 @@
+// @ts-nocheck — vendored dashboard component; not type-annotated. Linted by
+// Biome for correctness; excluded from strict tsc type-checking.
 import { Activity, AlertTriangle, ArrowUpDown, DollarSign, Search, Target, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, ErrorBar, LabelList, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';

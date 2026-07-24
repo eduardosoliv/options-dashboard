@@ -31,3 +31,10 @@ repos:
         language: system
         files: ^web/(src/.*\.(js|jsx|json)|biome\.json|vite\.config\.js)$
         pass_filenames: false
+
+      - id: tsc
+        name: tsc --noEmit (web, strict)
+        entry: bash -c 'cd web && npm run typecheck'
+        language: system
+        files: ^web/(src/.*\.(js|jsx|ts|tsx)|tsconfig\.json)$
+        pass_filenames: false

@@ -36,6 +36,7 @@ lint:
     cd fetcher && uv run ruff format --check .
     cd fetcher && uv run mypy normalize.py fetch_trades.py
     cd web && npm run lint
+    cd web && npm run typecheck
 
 # Auto-format and auto-fix everything.
 fmt:
@@ -43,9 +44,10 @@ fmt:
     cd fetcher && uv run ruff check --fix .
     cd web && npm run format
 
-# Type-check the fetcher (mypy strict).
+# Type-check both sides (mypy strict + tsc strict).
 typecheck:
     cd fetcher && uv run mypy normalize.py fetch_trades.py
+    cd web && npm run typecheck
 
 # Install git pre-commit hooks (requires pre-commit: `pipx install pre-commit`).
 hooks:

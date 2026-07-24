@@ -15,6 +15,6 @@ def test_atomic_write_roundtrips(tmp_path):
 def test_write_trades_refuses_empty_and_keeps_existing(tmp_path):
     p = tmp_path / "trades.json"
     write_trades(str(p), [{"ticker": "OLD"}])
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="0 trades"):
         write_trades(str(p), [])  # empty -> refuse
     assert json.loads(p.read_text()) == [{"ticker": "OLD"}]  # untouched

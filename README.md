@@ -85,7 +85,7 @@ All via `just` (run `just --list` to see them):
 | `just test` | Run all tests (pytest + vitest) |
 | `just lint` | Lint + type-check everything, no writes (ruff, mypy, biome) |
 | `just fmt` | Auto-format + auto-fix everything (ruff + biome) |
-| `just typecheck` | mypy (strict) on the fetcher |
+| `just typecheck` | mypy (strict) + tsc (strict) |
 | `just check` | Full gate: `lint` then `test` |
 | `just hooks` | Install the git pre-commit hooks |
 
@@ -94,13 +94,18 @@ Prefer the raw tools? `cd fetcher && uv run pytest` / `uv run ruff check` /
 
 ## Tooling
 
-- **Python:** [ruff](https://docs.astral.sh/ruff/) (lint + format) and
-  [mypy](https://mypy-lang.org/) in `--strict` mode. Config in
-  `fetcher/pyproject.toml`.
-- **Web:** [Biome](https://biomejs.dev/) (lint + format), config in
-  `web/biome.json`. The vendored `TradingDashboard.jsx` is linted for dead code
-  but intentionally not reformatted, and a few style/hook-dependency rules that
-  conflict with its `key`-based remount design are disabled for that file.
+All type-checkers and linters run in **strict** mode:
+
+- **Python:** [ruff](https://docs.astral.sh/ruff/) with the full ruleset
+  (`select = ["ALL"]`, a few opinion/formatter-conflict rules ignored) plus
+  [mypy](https://mypy-lang.org/) `--strict`. Config in `fetcher/pyproject.toml`.
+- **Web:** [Biome](https://biomejs.dev/) (lint + format) and strict
+  [TypeScript](https://www.typescriptlang.org/) via `tsc --noEmit` with
+  `strict` + `checkJs` — our authored JS (`App.jsx`, `data.js`, `main.jsx`) is
+  type-checked with JSDoc annotations (`tsconfig.json`). The vendored
+  `TradingDashboard.jsx` is `@ts-nocheck` (untyped) and only lint-checked by
+  Biome, not reformatted; a few Biome rules that conflict with its `key`-based
+  remount design are disabled for that file.
 - **Web tests:** Vitest — `data.test.js` covers the loader, and
   `TradingDashboard.test.jsx` is a jsdom render smoke test that mounts the full
   dashboard with fixture data (guards against breakage on dependency upgrades).

@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "biome check",
-    "format": "biome check --write"
+    "format": "biome check --write",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "lucide-react": "^1",
@@ -28,6 +29,7 @@
     "@vitejs/plugin-react": "^6",
     "jsdom": "^29",
     "tailwindcss": "^4",
+    "typescript": "^7",
     "vite": "^8",
     "vitest": "^4"
   }

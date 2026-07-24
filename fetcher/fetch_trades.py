@@ -11,6 +11,7 @@ Config via environment variables (with defaults):
 import json
 import os
 import sys
+from pathlib import Path
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -23,10 +24,10 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 
 def write_json_atomic(path: str, data: object) -> None:
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
+    tmp = Path(f"{path}.tmp")
+    with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
-    os.replace(tmp, path)  # atomic on POSIX
+    tmp.replace(path)  # atomic on POSIX
 
 
 def write_trades(path: str, trades: list[Trade]) -> None:
@@ -37,7 +38,7 @@ def write_trades(path: str, trades: list[Trade]) -> None:
 
 def get_creds(cred_path: str, token_path: str) -> Credentials:
     creds: Credentials | None = None
-    if os.path.exists(token_path):
+    if Path(token_path).exists():
         # google-auth ships types but leaves these classmethods unannotated.
         creds = Credentials.from_authorized_user_file(token_path, SCOPES)  # type: ignore[no-untyped-call]
     if not creds or not creds.valid:
@@ -46,7 +47,7 @@ def get_creds(cred_path: str, token_path: str) -> Credentials:
         else:
             flow = InstalledAppFlow.from_client_secrets_file(cred_path, SCOPES)
             creds = flow.run_local_server(port=0)  # opens browser once
-        with open(token_path, "w", encoding="utf-8") as f:
+        with Path(token_path).open("w", encoding="utf-8") as f:
             f.write(creds.to_json())
     return creds
 
@@ -82,11 +83,12 @@ def main() -> int:
         rows = fetch_rows(creds, spreadsheet_id, sheet_range)
         trades = normalize_rows(rows)
         write_trades(output_path, trades)  # guards empty, writes atomically
-        print(f"OK: wrote {len(trades)} trades to {output_path}")
-        return 0
     except Exception as exc:  # noqa: BLE001 - log and leave existing file intact
         print(f"ERROR: fetch failed, leaving {output_path} untouched: {exc}", file=sys.stderr)
         return 1
+    else:
+        print(f"OK: wrote {len(trades)} trades to {output_path}")
+        return 0
 
 
 if __name__ == "__main__":

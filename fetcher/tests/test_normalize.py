@@ -1,13 +1,12 @@
-import os
+from pathlib import Path
 
 from normalize import normalize_csv_text
 
-FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "sample_master.csv")
+FIXTURE = Path(__file__).parent / "fixtures" / "sample_master.csv"
 
 
 def load():
-    with open(FIXTURE, encoding="utf-8") as f:
-        return normalize_csv_text(f.read())
+    return normalize_csv_text(FIXTURE.read_text(encoding="utf-8"))
 
 
 def by(trades, ticker, strike, typ, status=None):
