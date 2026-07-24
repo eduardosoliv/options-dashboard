@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { signature, loadTrades } from './data.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { loadTrades, signature } from './data.js';
 
 afterEach(() => vi.restoreAllMocks());
 

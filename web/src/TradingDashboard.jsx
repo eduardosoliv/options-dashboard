@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend, AreaChart, Area, LabelList, ComposedChart, Line, ErrorBar } from 'recharts';
-import { TrendingUp, TrendingDown, Activity, DollarSign, Target, AlertTriangle, Search, ArrowUpDown, ChevronDown, Trophy } from 'lucide-react';
+// @ts-nocheck — vendored dashboard component; not type-annotated. Linted by
+// Biome for correctness; excluded from strict tsc type-checking.
+import { Activity, AlertTriangle, ArrowUpDown, DollarSign, Search, Target, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, ErrorBar, LabelList, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 
 // Helper functions
@@ -263,7 +265,6 @@ export default function TradingDashboard({ tradesData }) {
       // line starts there (e.g. June), not the month before.
       const last = rows[rows.length - 1];
       let cumC = last.cumulative, cumL = last.cumulative, cumH = last.cumulative;
-      const firstIsCurrent = fsorted[0].key === last.key;
       // Anchor the dashed forecast line at the last realized month's cumulative so
       // it hands off cleanly from the solid line (e.g. at June).
       last.cumCentral = last.cumulative;
@@ -2343,7 +2344,7 @@ function FilterGroup({ label, options, value, onChange }) {
   );
 }
 
-function SortableTh({ label, k, sortKey, sortDir, onSort, right }) {
+function SortableTh({ label, k, sortKey, onSort, right }) {
   const active = sortKey === k;
   return (
     <th className={`px-3 py-3 ${right ? 'text-right' : 'text-left'} select-none`}>
@@ -2474,7 +2475,7 @@ function InlineStat({ label, value, accent }) {
 }
 
 // SHORT PUTS LEDGER — includes risk capital, risk category, and annualized yield
-function TradeLedger({ trades, totalCount, strategy, statusFilter, setStatusFilter, outcomeFilter, setOutcomeFilter, bufferLevels, setBufferLevels, search, setSearch, sortKey, sortDir, handleSort, statusColor, riskColor }) {
+function TradeLedger({ trades, totalCount, statusFilter, setStatusFilter, outcomeFilter, setOutcomeFilter, bufferLevels, setBufferLevels, search, setSearch, sortKey, sortDir, handleSort, statusColor, riskColor }) {
   // Live stats based on currently filtered trades
   const closed = trades.filter(t => t.status !== 'IN PLAY');
   const inPlay = trades.filter(t => t.status === 'IN PLAY');

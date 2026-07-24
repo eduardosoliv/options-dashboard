@@ -3,12 +3,46 @@ name = "options-fetcher"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "google-api-python-client>=2.198.0",
-    "google-auth>=2.56.2",
-    "google-auth-oauthlib>=1.4.0",
+    "google-api-python-client>=2",
+    "google-auth>=2",
+    "google-auth-oauthlib>=1",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=9.1.1",
+    "mypy>=2",
+    "pytest>=9",
+    "ruff>=0.16",
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# Strict: enable the full ruleset, then turn off only rules that conflict with
+# the formatter or are stylistic-opinion noise for this project.
+select = ["ALL"]
+ignore = [
+    "COM812",  # trailing-comma — conflicts with the formatter
+    "ISC001",  # single-line-implicit-concat — conflicts with the formatter
+    "D",       # docstring conventions — not enforced project-wide
+    "ANN401",  # allow explicit `Any` where third-party types are untyped
+    "CPY001",  # no copyright header requirement
+    "TRY003",  # allow inline exception messages
+    "EM101",   # allow string-literal exception messages
+]
+
+[tool.ruff.lint.per-file-ignores]
+# CLI entrypoint prints status to stdout/stderr (captured by launchd logs).
+"fetch_trades.py" = ["T201"]
+# Tests: allow assert-rewrite style, missing annotations, and magic values.
+"tests/**" = ["S101", "ANN", "PLR2004", "INP001"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# Google client libraries ship without type stubs; don't fail on their imports.
+[[tool.mypy.overrides]]
+module = ["googleapiclient.*", "google_auth_oauthlib.*", "google.*"]
+ignore_missing_imports = true

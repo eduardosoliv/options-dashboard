@@ -1,19 +1,22 @@
-import os
+from pathlib import Path
+
 from normalize import normalize_csv_text
 
-FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "sample_master.csv")
+FIXTURE = Path(__file__).parent / "fixtures" / "sample_master.csv"
 
 
 def load():
-    with open(FIXTURE, encoding="utf-8") as f:
-        return normalize_csv_text(f.read())
+    return normalize_csv_text(FIXTURE.read_text(encoding="utf-8"))
 
 
 def by(trades, ticker, strike, typ, status=None):
     # status disambiguates the two AMZN 280 Covered Calls (one CLOSED, one IN PLAY).
     return next(
-        t for t in trades
-        if t["ticker"] == ticker and t["strike"] == strike and t["type"] == typ
+        t
+        for t in trades
+        if t["ticker"] == ticker
+        and t["strike"] == strike
+        and t["type"] == typ
         and (status is None or t["status"] == status)
     )
 
@@ -21,7 +24,7 @@ def by(trades, ticker, strike, typ, status=None):
 def test_row_count_is_148_and_no_summary_rows():
     trades = load()
     assert len(trades) == 148
-    assert all(t["ticker"] for t in trades)          # no blank-ticker summary rows
+    assert all(t["ticker"] for t in trades)  # no blank-ticker summary rows
     assert all(t["acquired"] for t in trades)
 
 
@@ -45,9 +48,9 @@ def test_in_play_covered_call_fields():
     assert t["premium"] == 224.33
     assert t["price"] == 233.74
     assert t["buffer"] == 19.79
-    assert t["riskCategory"] == "Safe"       # emoji stripped
+    assert t["riskCategory"] == "Safe"  # emoji stripped
     assert t["duration"] == 50
-    assert t["estYield"] is None             # blank for covered calls
+    assert t["estYield"] is None  # blank for covered calls
     assert t["riskLevel"] is None
 
 
