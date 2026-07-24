@@ -93,10 +93,10 @@ All via `just` (run `just --list` to see them):
 | `just serve` | Serve the built app on `http://localhost:4173` |
 | `just fetch` | Run the fetcher once → `web/dist/trades.json` (reads `config.toml`) |
 | `just test` | Run all tests (pytest + vitest) |
-| `just lint` | Lint + type-check everything, no writes (ruff, mypy, biome) |
+| `just lint` | Lint everything, no writes (ruff, biome) — no type-checking |
 | `just fmt` | Auto-format + auto-fix everything (ruff + biome) |
 | `just typecheck` | mypy (strict) + tsc (strict) |
-| `just check` | Full gate: `lint` then `test` |
+| `just check` | Full gate: `lint` + `typecheck` + `test` |
 | `just hooks` | Install the git pre-commit hooks |
 
 Prefer the raw tools? `cd fetcher && uv run pytest` / `uv run ruff check` /

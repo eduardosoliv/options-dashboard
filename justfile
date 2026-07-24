@@ -30,13 +30,11 @@ test:
     cd fetcher && uv run pytest -q
     cd web && npm test
 
-# Lint and type-check everything without modifying files.
+# Lint everything without modifying files (style + bug patterns; no type-checking).
 lint:
     cd fetcher && uv run ruff check .
     cd fetcher && uv run ruff format --check .
-    cd fetcher && uv run mypy normalize.py fetch_trades.py
     cd web && npm run lint
-    cd web && npm run typecheck
 
 # Auto-format and auto-fix everything.
 fmt:
@@ -53,5 +51,5 @@ typecheck:
 hooks:
     pre-commit install
 
-# Full local gate: lint + test.
-check: lint test
+# Full local gate: lint + typecheck + test.
+check: lint typecheck test
