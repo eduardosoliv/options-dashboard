@@ -1,13 +1,18 @@
 """Fetch the one Master sheet via OAuth and write trades.json atomically.
 
-Config via environment variables (with defaults):
-  SPREADSHEET_ID   the Sheet's ID (from its URL) -- REQUIRED
+Usage:
+  uv run python fetch_trades.py <spreadsheet-id> [output-path]
+
+  spreadsheet-id   the Sheet's ID (from its URL) -- REQUIRED
+  output-path      where to write trades.json (optional, default "trades.json")
+
+The remaining knobs are read from the environment (with defaults):
   SHEET_RANGE      tab/range to read (default "Master")
-  OUTPUT_PATH      where to write trades.json (default "trades.json")
   CREDENTIALS_PATH OAuth client secret (default "credentials.json")
   TOKEN_PATH       stored refresh token (default "token.json")
 """
 
+import argparse
 import json
 import os
 import sys
@@ -68,16 +73,28 @@ def fetch_rows(creds: Credentials, spreadsheet_id: str, sheet_range: str) -> lis
     return values
 
 
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Fetch the Master sheet via OAuth and write trades.json atomically.",
+    )
+    parser.add_argument("spreadsheet_id", help="the Sheet's ID (from its URL)")
+    parser.add_argument(
+        "output_path",
+        nargs="?",
+        default="trades.json",
+        help='where to write trades.json (default "trades.json")',
+    )
+    return parser.parse_args(argv)
+
+
 def main() -> int:
-    spreadsheet_id = os.environ.get("SPREADSHEET_ID", "")
+    args = parse_args()
+    spreadsheet_id = args.spreadsheet_id
+    output_path = args.output_path
     sheet_range = os.environ.get("SHEET_RANGE", "Master")
-    output_path = os.environ.get("OUTPUT_PATH", "trades.json")
     cred_path = os.environ.get("CREDENTIALS_PATH", "credentials.json")
     token_path = os.environ.get("TOKEN_PATH", "token.json")
 
-    if not spreadsheet_id:
-        print("ERROR: SPREADSHEET_ID is not set", file=sys.stderr)
-        return 2
     try:
         creds = get_creds(cred_path, token_path)
         rows = fetch_rows(creds, spreadsheet_id, sheet_range)
