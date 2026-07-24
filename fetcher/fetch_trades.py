@@ -27,6 +27,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+from diff import diff_trades, format_summary
 from normalize import Trade, normalize_rows
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
@@ -43,6 +44,20 @@ def write_json_atomic(path: str, data: object) -> None:
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     tmp.replace(path)  # atomic on POSIX
+
+
+def read_existing_trades(path: str) -> list[Trade]:
+    """Return the trades currently in `path`, or [] if missing/unreadable.
+
+    Used only to summarize changes; never raises, so a corrupt or absent file
+    can't block a fetch.
+    """
+    try:
+        with Path(path).open(encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return []
+    return data if isinstance(data, list) else []
 
 
 def write_trades(path: str, trades: list[Trade]) -> None:
@@ -125,6 +140,7 @@ def main() -> int:
     token_path = os.environ.get("TOKEN_PATH", str(SCRIPT_DIR / "token.json"))
 
     try:
+        previous = read_existing_trades(output_path)
         creds = get_creds(cred_path, token_path)
         rows = fetch_rows(creds, spreadsheet_id, sheet_range)
         trades = normalize_rows(rows)
@@ -134,6 +150,10 @@ def main() -> int:
         return 1
     else:
         print(f"OK: wrote {len(trades)} trades to {output_path}")
+        if previous:
+            print(format_summary(diff_trades(previous, trades)))
+        else:
+            print("  (baseline: no previous trades.json)")
         return 0
 
 
