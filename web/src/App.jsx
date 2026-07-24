@@ -6,7 +6,11 @@ const REFRESH_MS = 10 * 60 * 1000;
 
 export default function App() {
   const [state, setState] = useState(
-    /** @type {{ trades: object[] | null; sig: string | null }} */ ({ trades: null, sig: null }),
+    /** @type {{ trades: object[] | null; sig: string | null; updatedAt: string | null }} */ ({
+      trades: null,
+      sig: null,
+      updatedAt: null,
+    }),
   );
   const [error, setError] = useState(/** @type {unknown} */ (null));
 
@@ -14,9 +18,9 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const { trades, sig } = await loadTrades();
+        const { trades, sig, updatedAt } = await loadTrades();
         if (active) {
-          setState({ trades, sig });
+          setState({ trades, sig, updatedAt });
           setError(null);
         }
       } catch (e) {
@@ -50,5 +54,5 @@ export default function App() {
       </div>
     );
   }
-  return <TradingDashboard tradesData={state.trades} key={state.sig} />;
+  return <TradingDashboard tradesData={state.trades} updatedAt={state.updatedAt} key={state.sig} />;
 }

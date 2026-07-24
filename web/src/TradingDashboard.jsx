@@ -43,8 +43,17 @@ const isWin = (t) => t.gainLoss > 0;
 const isLoss = (t) => t.gainLoss < 0;
 const isClosed = (t) => t.status !== 'IN PLAY';
 
-export default function TradingDashboard({ tradesData }) {
+export default function TradingDashboard({ tradesData, updatedAt }) {
   const TRADES = tradesData;
+  const updatedLabel = updatedAt
+    ? new Date(updatedAt).toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : 'unknown';
   const [statusFilter, setStatusFilter] = useState('in_play'); // all, in_play, closed
   const [outcomeFilter, setOutcomeFilter] = useState('all'); // all, won, lost (only when closed)
   const [bufferLevels, setBufferLevels] = useState(['Very Safe', 'Safe', 'Alert', 'Danger', 'ITM', 'Deep ITM']); // multi-select, in-play only
@@ -628,7 +637,7 @@ export default function TradingDashboard({ tradesData }) {
           <div>
             <div className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.25em] text-amber-500/80 mb-2">Options Ledger</div>
             <h1 className="font-serif text-3xl sm:text-5xl font-bold tracking-tight">Portfolio<span className="text-amber-500">.</span></h1>
-            <div className="text-xs sm:text-sm text-zinc-500 mt-2 font-mono">Short Puts & Covered Calls — Updated July 21, 2026</div>
+            <div className="text-xs sm:text-sm text-zinc-500 mt-2 font-mono">Updated {updatedLabel}</div>
           </div>
           <div className="grid grid-cols-2 sm:flex gap-x-6 gap-y-4 sm:gap-10">
             <div>

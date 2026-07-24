@@ -1,5 +1,5 @@
 // biome-ignore lint/correctness/noNodejsModules: vite.config runs in Node, not the browser
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -16,8 +16,10 @@ function serveTradesInDev() {
     configureServer(server) {
       server.middlewares.use('/trades.json', async (_req, res) => {
         try {
-          const data = await readFile(tradesUrl);
+          const [data, info] = await Promise.all([readFile(tradesUrl), stat(tradesUrl)]);
           res.setHeader('Content-Type', 'application/json');
+          // Expose the fetcher's write time (mimics python http.server / vite preview).
+          res.setHeader('Last-Modified', info.mtime.toUTCString());
           res.end(data);
         } catch {
           res.statusCode = 404;

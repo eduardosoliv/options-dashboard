@@ -18,10 +18,16 @@ describe('signature', () => {
 describe('loadTrades', () => {
   it('parses and signs fetched json', async () => {
     const body = JSON.stringify([{ ticker: 'JPM' }]);
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve(body) });
-    const { trades, sig } = await loadTrades('/trades.json');
+    const lastModified = 'Wed, 23 Jul 2026 20:51:00 GMT';
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(body),
+      headers: { get: () => lastModified },
+    });
+    const { trades, sig, updatedAt } = await loadTrades('/trades.json');
     expect(trades).toEqual([{ ticker: 'JPM' }]);
     expect(sig).toBe(signature(body));
+    expect(updatedAt).toBe(lastModified);
   });
   it('throws on non-ok response', async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });

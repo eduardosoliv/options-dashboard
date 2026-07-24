@@ -15,13 +15,15 @@ export function signature(text) {
 }
 
 /**
- * Fetch and parse trades.json, returning the data plus a content signature.
+ * Fetch and parse trades.json, returning the data plus a content signature and
+ * the file's Last-Modified time (when the fetcher last wrote it).
  * @param {string} [url]
- * @returns {Promise<{ trades: object[]; sig: string }>}
+ * @returns {Promise<{ trades: object[]; sig: string; updatedAt: string | null }>}
  */
 export async function loadTrades(url = '/trades.json') {
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`trades.json fetch failed: ${res.status}`);
+  const updatedAt = res.headers.get('last-modified');
   const text = await res.text();
-  return { trades: JSON.parse(text), sig: signature(text) };
+  return { trades: JSON.parse(text), sig: signature(text), updatedAt };
 }
