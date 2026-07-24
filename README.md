@@ -31,7 +31,7 @@ Three decoupled parts:
 | Tool | Why | Install |
 |------|-----|---------|
 | [uv](https://docs.astral.sh/uv/) | Python env + deps for the fetcher | `brew install uv` |
-| Node ≥ 20 | Build/run the web app (`.nvmrc` pins 22) | `brew install node` or `nvm use` |
+| Node ≥ 20.19 | Build/run the web app — Vite 8 (`.nvmrc` pins 22) | `brew install node` or `nvm use` |
 | [just](https://github.com/casey/just) | Task runner (optional but convenient) | `brew install just` |
 | [pre-commit](https://pre-commit.com/) | Git hooks (optional) | `pipx install pre-commit` |
 
@@ -101,6 +101,10 @@ Prefer the raw tools? `cd fetcher && uv run pytest` / `uv run ruff check` /
   `web/biome.json`. The vendored `TradingDashboard.jsx` is linted for dead code
   but intentionally not reformatted, and a few style/hook-dependency rules that
   conflict with its `key`-based remount design are disabled for that file.
+- **Web tests:** Vitest — `data.test.js` covers the loader, and
+  `TradingDashboard.test.jsx` is a jsdom render smoke test that mounts the full
+  dashboard with fixture data (guards against breakage on dependency upgrades).
+  Dependencies track the latest majors and are pinned major-only (e.g. `^19`).
 - **Pre-commit:** `.pre-commit-config.yaml` runs ruff, mypy, and Biome on staged
   files via the project's own pinned tool versions. Enable with `just hooks`.
 
