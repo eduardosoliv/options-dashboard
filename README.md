@@ -62,11 +62,11 @@ justfile            task runner (just --list)
    `just build`.
 5. **First OAuth consent** (opens a browser once), from `fetcher/`:
    ```bash
-   uv run python fetch_trades.py "<your-sheet-id>" ../web/dist/trades.json
+   uv run python fetch_trades.py "<your-sheet-id>"
    ```
-   The Sheet ID is required; the output path is optional (defaults to
-   `trades.json`). You should see `OK: wrote N trades …` and a new
-   `fetcher/token.json`.
+   The Sheet ID is required; the output path is optional and defaults to
+   `web/dist/trades.json` (pass a second argument to override). You should see
+   `OK: wrote N trades …` and a new `fetcher/token.json`.
 6. **Wire the scheduler:** put your Sheet ID into `scripts/run_fetch.sh`
    (`SPREADSHEET_ID`).
 

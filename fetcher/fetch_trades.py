@@ -4,7 +4,8 @@ Usage:
   uv run python fetch_trades.py <spreadsheet-id> [output-path]
 
   spreadsheet-id   the Sheet's ID (from its URL) -- REQUIRED
-  output-path      where to write trades.json (optional, default "trades.json")
+  output-path      where to write trades.json
+                   (optional, default: ../web/dist/trades.json)
 
 The remaining knobs are read from the environment (with defaults):
   SHEET_RANGE      tab/range to read (default "Master")
@@ -26,6 +27,10 @@ from googleapiclient.discovery import build
 from normalize import Trade, normalize_rows
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+
+# Default output: web/dist/trades.json, resolved relative to this script (not the
+# current directory) so the default works no matter where the command is run from.
+DEFAULT_OUTPUT_PATH = str(Path(__file__).resolve().parent.parent / "web" / "dist" / "trades.json")
 
 
 def write_json_atomic(path: str, data: object) -> None:
@@ -81,8 +86,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "output_path",
         nargs="?",
-        default="trades.json",
-        help='where to write trades.json (default "trades.json")',
+        default=DEFAULT_OUTPUT_PATH,
+        help=f"where to write trades.json (default: {DEFAULT_OUTPUT_PATH})",
     )
     return parser.parse_args(argv)
 
