@@ -115,31 +115,44 @@ headers whatever you like. The **first row is skipped** (treated as headers).
 A row only counts as a trade if it has **both an Acquired date (A) and a Ticker
 (F)**; rows missing either (blank rows, subtotals, summary lines) are ignored.
 
-| Col | Field | Example | Format / notes |
-|-----|-------|---------|----------------|
-| A | Acquired | `Dec 16, 25` | Open date. **Required.** Free-form text (shown as-is). |
-| B | Expires | `Jan 16, 26` | Expiration date. |
-| C | Days / Status | `12` or `CLOSED` | A **number** ⇒ open (status "IN PLAY"); any **text** (e.g. `CLOSED`, `ASSIGNED`, `EXPIRED`) is used verbatim as the status. |
-| D | Position | — | **Not used** — kept only to preserve column order. |
-| E | Contracts | `2` | Integer. |
-| F | Ticker | `JPM` | Symbol. **Required.** |
-| G | Type | `Short Put` | Drives the ledger split — use `Short Put` or `Covered Call`. |
-| H | Premium | `$266.62` | `$` and commas are stripped. |
-| I | Strike | `$280` | Money. |
-| J | Current Price | `$284.10` | Money; blank for closed trades (shown as `—`). Use `=GOOGLEFINANCE($F2)` to keep it live for open positions. |
-| K | Buffer % | `8.5%` | `%` is stripped. |
-| L | Buffer Level | `🟢 Safe` | One of six categories (see [Buffer levels](#buffer-levels)); a leading emoji is stripped (`🟢 Safe` → `Safe`). |
-| M | Notional Risk | `$56,000` | Money — max notional on the position. |
-| N | Duration | `31` | Integer (days). |
-| O | Est. Yield | `6.2%` | Percent — estimated annualized yield. |
-| P | Closed On | `Jan 10, 26` | Date; blank while open. |
-| Q | Gain / Loss | `$266.62` | Realized P&L; positive = win, negative = loss. |
-| R | Capital | `$56,000` | Money. |
-| S | Real Yield | `5.9%` | Percent — realized annualized yield. |
+| Col | Field | Example | Format / notes | Formula |
+|-----|-------|---------|----------------|---------|
+| A | Acquired | `Dec 16, 25` | Open date. **Required.** Free-form text (shown as-is). | — |
+| B | Expires | `Jan 16, 26` | Expiration date. | — |
+| C | Days / Status | `12` or `CLOSED` | A **number** ⇒ open (status "IN PLAY"); any **text** (e.g. `CLOSED`, `ASSIGNED`, `EXPIRED`) is used verbatim as the status. | `=IF(DAYS($B2,TODAY())<0,"CLOSED",DAYS($B2,TODAY()))` |
+| D | Position | `JPM 280 Put` | Free-form position label (`<ticker> <strike> <Put\|Call>`); its first word is the ticker, which F's formula extracts. The dashboard itself reads F, not D. | — |
+| E | Contracts | `2` | Integer. | — |
+| F | Ticker | `JPM` | Symbol. **Required.** | `=LEFT($D2,FIND(" ",$D2)-1)` |
+| G | Type | `Short Put` | Drives the ledger split — use `Short Put` or `Covered Call`. | — |
+| H | Premium | `$266.62` | `$` and commas are stripped. | — |
+| I | Strike | `$280` | Money. | — |
+| J | Current Price | `$284.10` | Money; blank for closed trades (shown as `—`). Live via `GOOGLEFINANCE` for open positions. | `=IF(OR($C2="CLOSED",$C2="ASSIGNED",$C2="EXPIRED"),"",GOOGLEFINANCE($F2,"price"))` |
+| K | Buffer % | `8.5%` | `%` is stripped. Distance from strike, signed by trade type. | `=IF($J2="","",IF($G2="Short Put",($J2-$I2)/$J2,($I2-$J2)/$J2))` |
+| L | Buffer Level | `🟢 Safe` | One of six categories (see [Buffer levels](#buffer-levels)); a leading emoji is stripped (`🟢 Safe` → `Safe`). | see [Buffer levels](#buffer-levels) |
+| M | Notional Risk | `$56,000` | Money — max notional on the position. | `=IF(AND($G2="Short Put",$C2<>"CLOSED",$C2<>"ASSIGNED",$C2<>"EXPIRED"),$I2*$E2*100,"")` |
+| N | Duration | `31` | Integer (days). | `=DAYS($B2,$A2)` |
+| O | Est. Yield | `6.2%` | Percent — estimated annualized yield. | `=IF(AND($G2="Short Put",$H2<>""),$H2/$M2/$N2*365,"")` |
+| P | Closed On | `Jan 10, 26` | Date; blank while open. | — |
+| Q | Gain / Loss | `$266.62` | Realized P&L; positive = win, negative = loss. | — |
+| R | Capital | `$56,000` | Money. | `=IF(AND($G2="Short Put",$Q2<>""),$I2*$E2*100,"")` |
+| S | Real Yield | `5.9%` | Percent — realized annualized yield. | `=IF(AND($G2="Short Put",$Q2<>"",$C2<>"ASSIGNED"),$Q2/$R2/(DAYS($P2,$A2))*365,"")` |
 
 Money cells may include `$` and thousands separators; percent cells may include
 `%` — both are parsed leniently. Blank cells become empty/`null` and render as
 `—`.
+
+About the **Formula** column: these are the formulas from my actual sheet
+(written for row 2, the first data row) — they're entirely **optional**. The
+fetcher reads the *computed values* via the Sheets API, so hand-typed values
+work just as well; `—` marks columns I enter by hand. A few things worth
+knowing if you copy them:
+
+- **C** counts down the days to expiry and flips itself to `CLOSED` once past
+  expiration; I type `ASSIGNED` / `EXPIRED` over it manually when that's what
+  actually happened.
+- **M, O, R and S** only auto-compute for `Short Put` rows (the
+  `$G2="Short Put"` guard) — on covered-call rows I fill them in by hand.
+- **Q** is manual: the realized P&L when a position is bought back or expires.
 
 ### Buffer levels
 
@@ -169,16 +182,16 @@ These are the cutoffs I use (column K holds the buffer as a decimal, e.g. `0.2`
 Six real trades covering both types and all four statuses. Note how **open**
 positions (numeric column C) carry live columns (Price, Buffer, Level, Est.
 Yield) while the closed columns are blank, and **closed/assigned/expired** rows
-are the reverse. Column D (Position) is left blank since it's ignored.
+are the reverse.
 
 | A Acquired | B Expires | C Days/Status | D Position | E Contracts | F Ticker | G Type | H Premium | I Strike | J Price | K Buffer | L Level | M Notional | N Duration | O Est. Yield | P Closed On | Q Gain/Loss | R Capital | S Real Yield |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| May 27, 26 | Aug 21, 26 | 29 | | 2 | KKR | Short Put | $268.65 | $75 | $95.97 | 21.85% | ✅ Very Safe | $15,000 | 86 | 7.6% | | | | |
-| Jun 11, 26 | Jul 31, 26 | 8 | | 1 | AMZN | Covered Call | $224.33 | $280 | $233.66 | 19.83% | 🟢 Safe | | 50 | | | | | |
-| Dec 16, 25 | Jan 16, 26 | CLOSED | | 2 | JPM | Short Put | | $280 | | | | | 31 | | Jan 13, 26 | +$266.62 | $56,000 | 6.21% |
-| Dec 16, 25 | Feb 20, 26 | CLOSED | | 1 | GOOGL | Covered Call | | $365 | | | | | 66 | | Feb 11, 26 | +$301.32 | | |
-| Nov 17, 25 | Feb 20, 26 | ASSIGNED | | 1 | MSFT | Short Put | | $435 | | | | | 95 | | Feb 20, 26 | -$3,201.67 | $43,500 | |
-| Jan 13, 26 | Feb 20, 26 | EXPIRED | | 2 | MRSH | Short Put | | $165 | | | | | 38 | | Feb 20, 26 | +$238.65 | $33,000 | 6.95% |
+| May 27, 26 | Aug 21, 26 | 29 | KKR 75 Put | 2 | KKR | Short Put | $268.65 | $75 | $95.97 | 21.85% | ✅ Very Safe | $15,000 | 86 | 7.6% | | | | |
+| Jun 11, 26 | Jul 31, 26 | 8 | AMZN 280 Call | 1 | AMZN | Covered Call | $224.33 | $280 | $233.66 | 19.83% | 🟢 Safe | | 50 | | | | | |
+| Dec 16, 25 | Jan 16, 26 | CLOSED | JPM 280 Put | 2 | JPM | Short Put | | $280 | | | | | 31 | | Jan 13, 26 | +$266.62 | $56,000 | 6.21% |
+| Dec 16, 25 | Feb 20, 26 | CLOSED | GOOGL 365 Call | 1 | GOOGL | Covered Call | | $365 | | | | | 66 | | Feb 11, 26 | +$301.32 | | |
+| Nov 17, 25 | Feb 20, 26 | ASSIGNED | MSFT 435 Put | 1 | MSFT | Short Put | | $435 | | | | | 95 | | Feb 20, 26 | -$3,201.67 | $43,500 | |
+| Jan 13, 26 | Feb 20, 26 | EXPIRED | MRSH 165 Put | 2 | MRSH | Short Put | | $165 | | | | | 38 | | Feb 20, 26 | +$238.65 | $33,000 | 6.95% |
 
 ## Everyday commands
 
