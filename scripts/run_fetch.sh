@@ -5,10 +5,6 @@ ROOT="/Users/eduardooliveira/projects/options-dashboard"
 # Find yours with `command -v uv` (e.g. /opt/homebrew/bin/uv or ~/.local/bin/uv).
 UV="/opt/homebrew/bin/uv"
 cd "$ROOT/fetcher"
-SPREADSHEET_ID="<paste-sheet-id>"
-export SHEET_RANGE="Master"
-export CREDENTIALS_PATH="$ROOT/fetcher/credentials.json"
-export TOKEN_PATH="$ROOT/fetcher/token.json"
+# Sheet ID, tab, and destination come from config.toml at the project root.
 # `uv run` auto-syncs from uv.lock before executing, so the job self-heals if the env drifts.
-exec "$UV" run --project "$ROOT/fetcher" python fetch_trades.py \
-  "$SPREADSHEET_ID" "$ROOT/web/dist/trades.json"
+exec "$UV" run --project "$ROOT/fetcher" python fetch_trades.py

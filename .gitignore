@@ -2,7 +2,7 @@
 fetcher/credentials.json
 fetcher/token.json
 
-# Local fetch config (copy from config.example.toml)
+# Local fetch config (copy from config-example.toml)
 config.toml
 
 # Python

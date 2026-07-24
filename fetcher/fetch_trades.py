@@ -1,22 +1,25 @@
 """Fetch the one Master sheet via OAuth and write trades.json atomically.
 
-Usage:
-  uv run python fetch_trades.py <spreadsheet-id> [output-path]
+Config lives in `config.toml` at the project root (git-ignored). Copy
+`config-example.toml` to `config.toml` and fill it in, then just run:
 
-  spreadsheet-id   the Sheet's ID (from its URL) -- REQUIRED
-  output-path      where to write trades.json
-                   (optional, default: ../web/dist/trades.json)
+  uv run python fetch_trades.py
 
-The remaining knobs are read from the environment (with defaults):
-  SHEET_RANGE      tab/range to read (default "Master")
-  CREDENTIALS_PATH OAuth client secret (default "credentials.json")
-  TOKEN_PATH       stored refresh token (default "token.json")
+config.toml keys:
+  spreadsheet_id   the Sheet's ID (from its URL) -- REQUIRED
+  sheet_range      tab/range to read (default "Master")
+  output_path      where to write trades.json, relative to the project root
+                   (default "web/dist/trades.json")
+
+OAuth file locations can still be overridden via the environment:
+  CREDENTIALS_PATH OAuth client secret (default fetcher/credentials.json)
+  TOKEN_PATH       stored refresh token (default fetcher/token.json)
 """
 
-import argparse
 import json
 import os
 import sys
+import tomllib
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -28,9 +31,11 @@ from normalize import Trade, normalize_rows
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
-# Default output: web/dist/trades.json, resolved relative to this script (not the
-# current directory) so the default works no matter where the command is run from.
-DEFAULT_OUTPUT_PATH = str(Path(__file__).resolve().parent.parent / "web" / "dist" / "trades.json")
+# This script lives in fetcher/; the project root is its parent.
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+CONFIG_PATH = PROJECT_ROOT / "config.toml"
+EXAMPLE_CONFIG_PATH = PROJECT_ROOT / "config-example.toml"
 
 
 def write_json_atomic(path: str, data: object) -> None:
@@ -78,27 +83,46 @@ def fetch_rows(creds: Credentials, spreadsheet_id: str, sheet_range: str) -> lis
     return values
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Fetch the Master sheet via OAuth and write trades.json atomically.",
-    )
-    parser.add_argument("spreadsheet_id", help="the Sheet's ID (from its URL)")
-    parser.add_argument(
-        "output_path",
-        nargs="?",
-        default=DEFAULT_OUTPUT_PATH,
-        help=f"where to write trades.json (default: {DEFAULT_OUTPUT_PATH})",
-    )
-    return parser.parse_args(argv)
+class ConfigError(Exception):
+    """Raised when config.toml is missing or incomplete."""
+
+
+def load_config() -> tuple[str, str, str]:
+    """Return (spreadsheet_id, sheet_range, output_path) from config.toml.
+
+    output_path is resolved to an absolute path relative to the project root.
+    """
+    if not CONFIG_PATH.exists():
+        msg = (
+            f"no config file at {CONFIG_PATH}\n"
+            f"  Copy {EXAMPLE_CONFIG_PATH.name} to config.toml and fill in your Sheet ID."
+        )
+        raise ConfigError(msg)
+    with CONFIG_PATH.open("rb") as f:
+        cfg = tomllib.load(f)
+
+    spreadsheet_id = str(cfg.get("spreadsheet_id", "")).strip()
+    if not spreadsheet_id or spreadsheet_id == "paste-your-sheet-id-here":
+        msg = f"set 'spreadsheet_id' in {CONFIG_PATH}"
+        raise ConfigError(msg)
+
+    sheet_range = str(cfg.get("sheet_range", "Master")).strip() or "Master"
+
+    raw_output = str(cfg.get("output_path", "web/dist/trades.json")).strip()
+    output = Path(raw_output)
+    if not output.is_absolute():
+        output = PROJECT_ROOT / output
+    return spreadsheet_id, sheet_range, str(output)
 
 
 def main() -> int:
-    args = parse_args()
-    spreadsheet_id = args.spreadsheet_id
-    output_path = args.output_path
-    sheet_range = os.environ.get("SHEET_RANGE", "Master")
-    cred_path = os.environ.get("CREDENTIALS_PATH", "credentials.json")
-    token_path = os.environ.get("TOKEN_PATH", "token.json")
+    try:
+        spreadsheet_id, sheet_range, output_path = load_config()
+    except ConfigError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    cred_path = os.environ.get("CREDENTIALS_PATH", str(SCRIPT_DIR / "credentials.json"))
+    token_path = os.environ.get("TOKEN_PATH", str(SCRIPT_DIR / "token.json"))
 
     try:
         creds = get_creds(cred_path, token_path)

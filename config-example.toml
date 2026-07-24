@@ -1,0 +1,12 @@
+# Copy this file to `config.toml` (same directory) and fill in your values.
+# `config.toml` is git-ignored, so your Sheet ID stays out of version control.
+
+# The Sheet's ID, taken from its URL:
+#   https://docs.google.com/spreadsheets/d/<THIS-PART>/edit
+spreadsheet_id = "paste-your-sheet-id-here"
+
+# The tab (or A1 range) to read.
+sheet_range = "Master"
+
+# Where to write trades.json. Relative paths are resolved from the project root.
+output_path = "web/dist/trades.json"

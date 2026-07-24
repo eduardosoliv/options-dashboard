@@ -60,18 +60,17 @@ justfile            task runner (just --list)
    `cd web && npm install`).
 4. **Build the web app** (creates `web/dist/`, which the fetcher writes into):
    `just build`.
-5. **First OAuth consent** (opens a browser once), from `fetcher/`:
+5. **Configure the fetch:** copy `config-example.toml` to `config.toml` at the
+   project root and set your `spreadsheet_id`. `config.toml` is git-ignored.
+6. **First OAuth consent** (opens a browser once), from `fetcher/`:
    ```bash
-   uv run python fetch_trades.py "<your-sheet-id>"
+   uv run python fetch_trades.py
    ```
-   The Sheet ID is required; the output path is optional and defaults to
-   `web/dist/trades.json` (pass a second argument to override). You should see
+   It reads `config.toml`, so no arguments are needed. You should see
    `OK: wrote N trades …` and a new `fetcher/token.json`.
-6. **Wire the scheduler:** put your Sheet ID into `scripts/run_fetch.sh`
-   (`SPREADSHEET_ID`).
 
-> The Sheet's tab must be named **`Master`** (the default `SHEET_RANGE`). If
-> yours differs, set `SHEET_RANGE` accordingly.
+> The Sheet's tab must be named **`Master`** (the default `sheet_range` in
+> `config.toml`). If yours differs, set `sheet_range` accordingly.
 
 ## Everyday commands
 
@@ -146,11 +145,10 @@ launchctl unload ~/Library/LaunchAgents/net.eduardooliveira.options-serve.plist
   `web/dist/trades.json` yet. Run `just fetch` (after `just build`), or check
   `fetch.err.log`.
 - **Browser consent re-appears / token errors:** delete `fetcher/token.json` and
-  re-run the step-5 consent command.
-- **`launchctl` fetch job fails silently:** it needs `SPREADSHEET_ID` set in
-  `scripts/run_fetch.sh` and a valid `fetcher/credentials.json` +
-  `fetcher/token.json`. launchd uses a minimal PATH, which is why the script
-  calls `uv` by absolute path.
+  re-run the step-6 consent command.
+- **`launchctl` fetch job fails silently:** it needs a valid `config.toml` at the
+  project root plus `fetcher/credentials.json` + `fetcher/token.json`. launchd
+  uses a minimal PATH, which is why the script calls `uv` by absolute path.
 - **Empty/zero trades:** the fetcher refuses to overwrite with an empty result,
   so the last good `trades.json` stays in place; check that the tab name matches
-  `SHEET_RANGE`.
+  `sheet_range` in `config.toml`.
