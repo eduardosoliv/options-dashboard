@@ -119,23 +119,23 @@ A row only counts as a trade if it has **both an Acquired date (A) and a Ticker
 |-----|-------|---------|----------------|---------|
 | A | Acquired | `Dec 16, 25` | Open date. **Required.** Free-form text (shown as-is). | — |
 | B | Expires | `Jan 16, 26` | Expiration date. | — |
-| C | Days / Status | `12` or `CLOSED` | A **number** ⇒ open (status "IN PLAY"); any **text** (e.g. `CLOSED`, `ASSIGNED`, `EXPIRED`) is used verbatim as the status. | `=IF(DAYS($B2,TODAY())<0,"CLOSED",DAYS($B2,TODAY()))` |
+| C | Days / Status | `12` or `CLOSED` | A **number** ⇒ open (status "IN PLAY"); any **text** (e.g. `CLOSED`, `ASSIGNED`, `EXPIRED`) is used verbatim as the status. | `=IF(DAYS($B2, TODAY())<0,"CLOSED",DAYS($B2, TODAY()))` |
 | D | Position | `JPM 280 Put` | Free-form position label (`<ticker> <strike> <Put\|Call>`); its first word is the ticker, which F's formula extracts. The dashboard itself reads F, not D. | — |
 | E | Contracts | `2` | Integer. | — |
-| F | Ticker | `JPM` | Symbol. **Required.** | `=LEFT($D2,FIND(" ",$D2)-1)` |
+| F | Ticker | `JPM` | Symbol. **Required.** | `=LEFT($D2,FIND(" ", $D2) - 1)` |
 | G | Type | `Short Put` | Drives the ledger split — use `Short Put` or `Covered Call`. | — |
 | H | Premium | `$266.62` | `$` and commas are stripped. | — |
 | I | Strike | `$280` | Money. | — |
-| J | Current Price | `$284.10` | Money; blank for closed trades (shown as `—`). Live via `GOOGLEFINANCE` for open positions. | `=IF(OR($C2="CLOSED",$C2="ASSIGNED",$C2="EXPIRED"),"",GOOGLEFINANCE($F2,"price"))` |
+| J | Current Price | `$284.10` | Money; blank for closed trades (shown as `—`). Live via `GOOGLEFINANCE` for open positions. | `=IF(OR($C2="CLOSED", $C2="ASSIGNED", $C2="EXPIRED"),"",GOOGLEFINANCE($F2,"price"))` |
 | K | Buffer % | `8.5%` | `%` is stripped. Distance from strike, signed by trade type. | `=IF($J2="","",IF($G2="Short Put",($J2-$I2)/$J2,($I2-$J2)/$J2))` |
 | L | Buffer Level | `🟢 Safe` | One of six categories (see [Buffer levels](#buffer-levels)); a leading emoji is stripped (`🟢 Safe` → `Safe`). | see [Buffer levels](#buffer-levels) |
-| M | Notional Risk | `$56,000` | Money — max notional on the position. | `=IF(AND($G2="Short Put",$C2<>"CLOSED",$C2<>"ASSIGNED",$C2<>"EXPIRED"),$I2*$E2*100,"")` |
-| N | Duration | `31` | Integer (days). | `=DAYS($B2,$A2)` |
-| O | Est. Yield | `6.2%` | Percent — estimated annualized yield. | `=IF(AND($G2="Short Put",$H2<>""),$H2/$M2/$N2*365,"")` |
+| M | Notional Risk | `$56,000` | Money — max notional on the position. | `=IF(AND($G2="Short Put",$C2<>"CLOSED", $C2<>"ASSIGNED", $C2<>"EXPIRED"), $I2*E2*100,"")` |
+| N | Duration | `31` | Integer (days). | `=DAYS($B2, $A2)` |
+| O | Est. Yield | `6.2%` | Percent — estimated annualized yield. | `=IF(AND($G2="Short Put",$H2<>""), $H2/$M2/$N2*365, "")` |
 | P | Closed On | `Jan 10, 26` | Date; blank while open. | — |
 | Q | Gain / Loss | `$266.62` | Realized P&L; positive = win, negative = loss. | — |
-| R | Capital | `$56,000` | Money. | `=IF(AND($G2="Short Put",$Q2<>""),$I2*$E2*100,"")` |
-| S | Real Yield | `5.9%` | Percent — realized annualized yield. | `=IF(AND($G2="Short Put",$Q2<>"",$C2<>"ASSIGNED"),$Q2/$R2/(DAYS($P2,$A2))*365,"")` |
+| R | Capital | `$56,000` | Money. | `=IF(AND($G2="Short Put", $Q2<>""), $I2*E2*100, "")` |
+| S | Real Yield | `5.9%` | Percent — realized annualized yield. | `=IF(AND($G2="Short Put",$Q2<>"",$C2<>"ASSIGNED"), $Q2/$R2/(DAYS($P2, $A2))*365, "")` |
 
 Money cells may include `$` and thousands separators; percent cells may include
 `%` — both are parsed leniently. Blank cells become empty/`null` and render as
@@ -174,7 +174,7 @@ These are the cutoffs I use (column K holds the buffer as a decimal, e.g. `0.2`
 = 20%), computed in the sheet so column L stays in sync automatically:
 
 ```
-=IF($K2="","",IF($K2>0.2,"✅ Very Safe",IF($K2>0.1,"🟢 Safe",IF($K2>0.05,"⚠️ Alert",IF($K2>0,"❗ Danger",IF($K2>-0.05,"🔴 ITM","🔴 Deep ITM"))))))
+=IF($K2="","",IF($K2>0.2,"✅ Very Safe",IF($K2>0.1,"🟢 Safe",IF($K2>0.05, "⚠️ Alert",IF($K2>0,"❗ Danger",IF($K2>-0.05,"🔴 ITM", "🔴 Deep ITM"))))))
 ```
 
 ### Example rows
