@@ -34,7 +34,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# CLI entrypoint prints status to stdout/stderr (captured by launchd logs).
+# CLI entrypoint prints status to stdout/stderr (captured by the scheduler's logs).
 "fetch_trades.py" = ["T201"]
 # Tests: allow assert-rewrite style, missing annotations, and magic values.
 "tests/**" = ["S101", "ANN", "PLR2004", "INP001"]

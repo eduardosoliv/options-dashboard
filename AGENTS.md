@@ -23,7 +23,6 @@ web/                Vite + React 19 + Tailwind v4 app
   src/TradingDashboard.jsx VENDORED dashboard (see rules below) — reads a `tradesData` prop
   src/data.js             trades.json fetch + djb2 content hash
   src/*.test.*            vitest (loader unit test + jsdom render smoke test)
-scripts/            run_fetch.sh + two launchd .plist files
 docs/superpowers/   design specs & implementation plans
 justfile            task runner — the canonical entrypoint for all commands
 ```
@@ -132,8 +131,7 @@ Sheet-parsing rules that are easy to get wrong (`fetcher/normalize.py`):
   branch. Re-run `just check` on the merged result.
 - Only commit/push when asked.
 
-## Two steps agents can't do (need the human)
+## One step agents can't do (needs the human)
 
 - First-time Google OAuth: needs the user's `fetcher/credentials.json` and an
   interactive browser consent. Build `web/dist/` first (the fetcher writes into it).
-- Loading the launchd jobs: modifies the user's system; leave it to them.
