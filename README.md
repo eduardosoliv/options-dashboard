@@ -54,6 +54,7 @@ web/                Vite + React + Tailwind app
   src/TradingDashboard.jsx   the dashboard (reads a tradesData prop)
   src/data.js         trades.json fetch + content hash
   trades-example.json sample data — copy to dist/trades.json to preview
+config-example.toml template for config.toml (git-ignored): Sheet ID + options
 justfile            task runner (just --list)
 ```
 
@@ -82,8 +83,9 @@ sample file).
    in "Testing" mode, so only listed test users can authorize).
 2. **OAuth client:** create an OAuth **Desktop app** client and download it to
    `fetcher/credentials.json`.
-3. **Share the Sheet** with your own Google account (it already is) — the OAuth
-   scope is read-only and limited to Sheets.
+3. **Sheet access:** the Google account you authorize in step 7 must be able to
+   read the Sheet — if it's your own Sheet, it already can; otherwise have the
+   owner share it with you. The OAuth scope is read-only and limited to Sheets.
 4. **Install dependencies:** `just install` (or `cd fetcher && uv sync` and
    `cd web && npm install`).
 5. **Build the web app** (creates `web/dist/`, which the fetcher writes into):

@@ -20,9 +20,11 @@ fetcher/            Python service (managed with uv)
   tests/              pytest (runs against a real sample CSV export)
 web/                Vite + React 19 + Tailwind v4 app
   src/App.jsx              data loader: fetch + 10-min refresh + remount-on-change
-  src/TradingDashboard.jsx VENDORED dashboard (see rules below) — reads a `tradesData` prop
+  src/TradingDashboard.jsx VENDORED dashboard (see rules below) — takes `tradesData` + `updatedAt` props
   src/data.js             trades.json fetch + djb2 content hash
   src/*.test.*            vitest (loader unit test + jsdom render smoke test)
+  trades-example.json      sample dataset for previewing without Google (see README)
+config-example.toml template for `config.toml` (git-ignored): spreadsheet_id, sheet_range, output_path
 docs/superpowers/   design specs & implementation plans
 justfile            task runner — the canonical entrypoint for all commands
 ```
@@ -35,12 +37,13 @@ justfile            task runner — the canonical entrypoint for all commands
 |---------|---------|
 | `just install` | install deps (uv sync + npm install) |
 | `just test` | all tests (pytest + vitest) |
-| `just lint` | ruff + ruff-format-check + mypy + biome + tsc (no writes) |
+| `just lint` | ruff + ruff-format-check + biome (no writes, no type-checking) |
 | `just fmt` | auto-format + auto-fix (ruff + biome) |
 | `just typecheck` | mypy strict + tsc strict |
-| `just check` | full gate: `lint` then `test` — run this before claiming done |
+| `just check` | full gate: `lint` + `typecheck` + `test` — run this before claiming done |
 | `just build` / `just serve` / `just dev` | web build / serve dist on :4173 / dev server |
-| `just fetch` | run the fetcher once → `web/dist/trades.json` |
+| `just fetch` | run the fetcher once → `web/dist/trades.json` (reads `config.toml`) |
+| `just hooks` | install the pre-commit git hooks (`.pre-commit-config.yaml`) |
 
 Raw equivalents: `cd fetcher && uv run <ruff|mypy|pytest>`; `cd web && npm run <lint|typecheck|test|build>`.
 
@@ -69,7 +72,8 @@ Raw equivalents: `cd fetcher && uv run <ruff|mypy|pytest>`; `cd web && npm run <
 - It is `@ts-nocheck` and **excluded from Biome** (`!src/TradingDashboard.jsx` in
   `biome.json`). Strict tooling applies to code we author, not this file.
 - **Do not reformat it or refactor its internals.** The only sanctioned edits so
-  far: removing hardcoded data + dead code, and the `{ tradesData }` prop swap.
+  far: removing hardcoded data + dead code, and the `{ tradesData, updatedAt }`
+  prop swap.
 - It reads all trade data from `const TRADES = tradesData;` (first line of the
   component). `App.jsx` remounts it via `key={sig}` when data changes, so its
   many `useMemo(…, [])` hooks recompute — do not "fix" those empty deps.
@@ -107,11 +111,12 @@ Sheet-parsing rules that are easy to get wrong (`fetcher/normalize.py`):
   don't clear state on error.
 - **OAuth scope is exactly** `https://www.googleapis.com/auth/spreadsheets.readonly`
   — never add `drive.*` scopes.
-- **Secrets stay out of git:** `fetcher/credentials.json`, `fetcher/token.json`
-  are gitignored. Never commit them, `.venv/`, `node_modules/`, `dist/`, or
-  `trades.json`. Check `git status` before committing.
-- The Sheet tab is named **`Master`** (default `SHEET_RANGE`); in-play quotes are
-  live via `GOOGLEFINANCE`, which is why the 10-min refresh matters.
+- **Secrets stay out of git:** `fetcher/credentials.json`, `fetcher/token.json`,
+  and `config.toml` are gitignored. Never commit them, `.venv/`, `node_modules/`,
+  `dist/`, or `trades.json`. Check `git status` before committing.
+- The Sheet tab is named **`Master`** (default `sheet_range` in `config.toml`);
+  in-play quotes are live via `GOOGLEFINANCE`, which is why the 10-min refresh
+  matters.
 
 ## Testing
 
@@ -126,12 +131,14 @@ Sheet-parsing rules that are easy to get wrong (`fetcher/normalize.py`):
 
 ## Git workflow
 
-- **Don't commit directly to `master` for non-trivial work.** Branch, commit in
+- **Don't commit directly to `main` for non-trivial work.** Branch, commit in
   focused logical commits, then merge with `git merge --no-ff` and delete the
   branch. Re-run `just check` on the merged result.
 - Only commit/push when asked.
 
-## One step agents can't do (needs the human)
+## Steps agents can't do (need the human)
 
 - First-time Google OAuth: needs the user's `fetcher/credentials.json` and an
   interactive browser consent. Build `web/dist/` first (the fetcher writes into it).
+- Creating `config.toml`: needs the user's real spreadsheet ID (copy
+  `config-example.toml` and fill it in).
