@@ -7,8 +7,10 @@
 export function signature(text) {
   let h = 5381;
   for (let i = 0; i < text.length; i++) {
+    // biome-ignore lint/suspicious/noBitwiseOperators: djb2 hashing requires bitwise math
     h = ((h << 5) + h + text.charCodeAt(i)) | 0;
   }
+  // biome-ignore lint/suspicious/noBitwiseOperators: unsigned 32-bit conversion
   return String(h >>> 0);
 }
 

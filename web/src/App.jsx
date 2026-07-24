@@ -22,6 +22,7 @@ export default function App() {
       } catch (e) {
         // Keep showing the last good data; only surface if we never loaded.
         if (active) setError(e);
+        // biome-ignore lint/suspicious/noConsole: surface load failures to the browser console
         console.error('trades load failed', e);
       }
     };

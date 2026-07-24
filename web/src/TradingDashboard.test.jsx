@@ -6,9 +6,15 @@ import TradingDashboard from './TradingDashboard.jsx';
 // recharts' ResponsiveContainer uses ResizeObserver, which jsdom doesn't provide.
 beforeAll(() => {
   globalThis.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
+    observe() {
+      /* no-op */
+    }
+    unobserve() {
+      /* no-op */
+    }
+    disconnect() {
+      /* no-op */
+    }
   };
 });
 

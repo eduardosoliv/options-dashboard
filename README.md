@@ -99,13 +99,17 @@ All type-checkers and linters run in **strict** mode:
 - **Python:** [ruff](https://docs.astral.sh/ruff/) with the full ruleset
   (`select = ["ALL"]`, a few opinion/formatter-conflict rules ignored) plus
   [mypy](https://mypy-lang.org/) `--strict`. Config in `fetcher/pyproject.toml`.
-- **Web:** [Biome](https://biomejs.dev/) (lint + format) and strict
+- **Web:** [Biome](https://biomejs.dev/) (lint + format) in a strict posture —
+  every bug-catching rule group (`correctness`, `suspicious`, `security`,
+  `complexity`, `performance`, `a11y`) enabled in full, not just the recommended
+  subset (`web/biome.json`). Plus strict
   [TypeScript](https://www.typescriptlang.org/) via `tsc --noEmit` with
   `strict` + `checkJs` — our authored JS (`App.jsx`, `data.js`, `main.jsx`) is
-  type-checked with JSDoc annotations (`tsconfig.json`). The vendored
-  `TradingDashboard.jsx` is `@ts-nocheck` (untyped) and only lint-checked by
-  Biome, not reformatted; a few Biome rules that conflict with its `key`-based
-  remount design are disabled for that file.
+  type-checked with JSDoc annotations (`tsconfig.json`).
+- **Vendored component:** `src/TradingDashboard.jsx` is a large, untyped
+  third-party component. It's excluded from Biome and marked `@ts-nocheck`, so
+  strict tooling applies to the code we author, not the vendored file. (Its dead
+  code was already removed when it was brought in.)
 - **Web tests:** Vitest — `data.test.js` covers the loader, and
   `TradingDashboard.test.jsx` is a jsdom render smoke test that mounts the full
   dashboard with fixture data (guards against breakage on dependency upgrades).

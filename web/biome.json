@@ -2,7 +2,7 @@
   "$schema": "https://biomejs.dev/schemas/2.5.5/schema.json",
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!dist", "!node_modules"]
+    "includes": ["**", "!dist", "!node_modules", "!src/TradingDashboard.jsx"]
   },
   "formatter": {
     "enabled": true,
@@ -12,27 +12,17 @@
   },
   "linter": {
     "enabled": true,
-    "rules": { "preset": "recommended" }
+    "rules": {
+      "preset": "recommended",
+      "a11y": "on",
+      "complexity": "on",
+      "correctness": "on",
+      "performance": "on",
+      "security": "on",
+      "suspicious": "on"
+    }
   },
   "javascript": {
     "formatter": { "quoteStyle": "single", "jsxQuoteStyle": "double" }
-  },
-  "overrides": [
-    {
-      "includes": ["src/TradingDashboard.jsx"],
-      "formatter": { "enabled": false },
-      "linter": {
-        "rules": {
-          "correctness": {
-            "useExhaustiveDependencies": "off",
-            "useParseIntRadix": "off"
-          },
-          "style": { "useTemplate": "off" },
-          "complexity": { "useOptionalChain": "off" },
-          "a11y": { "useButtonType": "off" },
-          "suspicious": { "noArrayIndexKey": "off" }
-        }
-      }
-    }
-  ]
+  }
 }
