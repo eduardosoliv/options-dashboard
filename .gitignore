@@ -21,3 +21,6 @@ web/public/trades.json
 
 # SDD scratch
 .superpowers/
+
+# macOS
+.DS_Store
