@@ -108,6 +108,15 @@ sample file).
 
 ## The Master sheet layout
 
+**Start from the template:** download
+[`docs/master-template.xlsx`](docs/master-template.xlsx) and import it into
+Google Sheets (**File → Import → Upload → Create new spreadsheet**). The tab is
+already named `Master`, every formula from the table below is in place, and
+it's pre-filled with the six [example rows](#example-rows) — replace them with
+your own trades and start tracking. Note the file is meant for Google Sheets:
+opened directly in Excel, the Price column shows `#NAME?` because
+`GOOGLEFINANCE` only exists in Sheets.
+
 The fetcher reads the tab **by column position**, not by header name — so the
 **order and count of columns must match the table below**, but you can call the
 headers whatever you like. The **first row is skipped** (treated as headers).
