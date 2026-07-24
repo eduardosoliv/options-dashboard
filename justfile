@@ -21,7 +21,7 @@ build:
 serve:
     cd web && npm run preview
 
-# Fetch the sheet once into web/dist/trades.json (set SPREADSHEET_ID in scripts/run_fetch.sh).
+# Fetch the sheet once into web/dist/trades.json (reads config.toml at the project root).
 fetch:
     ./scripts/run_fetch.sh
 

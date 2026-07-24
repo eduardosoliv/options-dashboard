@@ -52,22 +52,30 @@ justfile            task runner (just --list)
 
 ## One-time setup
 
-1. **Google Cloud:** enable the **Google Sheets API**, create an OAuth
-   **Desktop app** client, and download it to `fetcher/credentials.json`.
-2. **Share the Sheet** with your own Google account (it already is) — the OAuth
+1. **Google Cloud:** enable the **Google Sheets API**, then configure the
+   **OAuth consent screen** (User type **External**, add the read-only Sheets
+   scope, and add your own Google account under **Test users** — the app stays
+   in "Testing" mode, so only listed test users can authorize).
+2. **OAuth client:** create an OAuth **Desktop app** client and download it to
+   `fetcher/credentials.json`.
+3. **Share the Sheet** with your own Google account (it already is) — the OAuth
    scope is read-only and limited to Sheets.
-3. **Install dependencies:** `just install` (or `cd fetcher && uv sync` and
+4. **Install dependencies:** `just install` (or `cd fetcher && uv sync` and
    `cd web && npm install`).
-4. **Build the web app** (creates `web/dist/`, which the fetcher writes into):
+5. **Build the web app** (creates `web/dist/`, which the fetcher writes into):
    `just build`.
-5. **Configure the fetch:** copy `config-example.toml` to `config.toml` at the
+6. **Configure the fetch:** copy `config-example.toml` to `config.toml` at the
    project root and set your `spreadsheet_id`. `config.toml` is git-ignored.
-6. **First OAuth consent** (opens a browser once), from `fetcher/`:
+7. **First OAuth consent** (opens a browser once), from `fetcher/`:
    ```bash
    uv run python fetch_trades.py
    ```
-   It reads `config.toml`, so no arguments are needed. You should see
-   `OK: wrote N trades …` and a new `fetcher/token.json`.
+   It reads `config.toml`, so no arguments are needed. A browser tab opens for
+   you to pick your Google account and grant read-only Sheets access. Because
+   the app is unverified, Google warns "Google hasn't verified this app" —
+   click **Advanced → Go to … (unsafe)** to continue (safe: it's your own
+   client). You should then see `OK: wrote N trades …` and a new
+   `fetcher/token.json` (the stored refresh token, so this consent is one-time).
 
 > The Sheet's tab must be named **`Master`** (the default `sheet_range` in
 > `config.toml`). If yours differs, set `sheet_range` accordingly.
@@ -81,7 +89,7 @@ All via `just` (run `just --list` to see them):
 | `just dev` | Web app in dev mode with hot reload (`http://localhost:5173`) |
 | `just build` | Build the web app to `web/dist/` |
 | `just serve` | Serve the built app on `http://localhost:4173` |
-| `just fetch` | Run the fetcher once → `web/dist/trades.json` (needs Sheet ID) |
+| `just fetch` | Run the fetcher once → `web/dist/trades.json` (reads `config.toml`) |
 | `just test` | Run all tests (pytest + vitest) |
 | `just lint` | Lint + type-check everything, no writes (ruff, mypy, biome) |
 | `just fmt` | Auto-format + auto-fix everything (ruff + biome) |
@@ -145,7 +153,7 @@ launchctl unload ~/Library/LaunchAgents/net.eduardooliveira.options-serve.plist
   `web/dist/trades.json` yet. Run `just fetch` (after `just build`), or check
   `fetch.err.log`.
 - **Browser consent re-appears / token errors:** delete `fetcher/token.json` and
-  re-run the step-6 consent command.
+  re-run the step-7 consent command.
 - **`launchctl` fetch job fails silently:** it needs a valid `config.toml` at the
   project root plus `fetcher/credentials.json` + `fetcher/token.json`. launchd
   uses a minimal PATH, which is why the script calls `uv` by absolute path.
