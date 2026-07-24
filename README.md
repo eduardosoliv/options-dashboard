@@ -52,9 +52,27 @@ web/                Vite + React + Tailwind app
   src/App.jsx         data loader (fetch + 10-min refresh + remount-on-change)
   src/TradingDashboard.jsx   the dashboard (reads a tradesData prop)
   src/data.js         trades.json fetch + content hash
+  trades-example.json sample data — copy to dist/trades.json to preview
 scripts/            run_fetch.sh + two launchd .plist files
 justfile            task runner (just --list)
 ```
+
+## Try it with sample data
+
+Want to see the dashboard before wiring up Google Sheets? A tiny example dataset
+(`web/trades-example.json` — the six trades documented below) ships in the repo.
+Copy it into place and run the app:
+
+```bash
+just install                                   # install deps
+just build                                     # build web/dist/
+cp web/trades-example.json web/dist/trades.json
+just dev                                        # then open the printed URL
+```
+
+That's the whole preview — no Google account, OAuth, or fetcher needed. When
+you're ready for live data, follow the setup below (a real fetch overwrites the
+sample file).
 
 ## One-time setup
 
@@ -85,6 +103,80 @@ justfile            task runner (just --list)
 
 > The Sheet's tab must be named **`Master`** (the default `sheet_range` in
 > `config.toml`). If yours differs, set `sheet_range` accordingly.
+
+## The Master sheet layout
+
+The fetcher reads the tab **by column position**, not by header name — so the
+**order and count of columns must match the table below**, but you can call the
+headers whatever you like. The **first row is skipped** (treated as headers).
+
+A row only counts as a trade if it has **both an Acquired date (A) and a Ticker
+(F)**; rows missing either (blank rows, subtotals, summary lines) are ignored.
+
+| Col | Field | Example | Format / notes |
+|-----|-------|---------|----------------|
+| A | Acquired | `Dec 16, 25` | Open date. **Required.** Free-form text (shown as-is). |
+| B | Expires | `Jan 16, 26` | Expiration date. |
+| C | Days / Status | `12` or `CLOSED` | A **number** ⇒ open (status "IN PLAY"); any **text** (e.g. `CLOSED`, `ASSIGNED`, `EXPIRED`) is used verbatim as the status. |
+| D | Position | — | **Not used** — kept only to preserve column order. |
+| E | Contracts | `2` | Integer. |
+| F | Ticker | `JPM` | Symbol. **Required.** |
+| G | Type | `Short Put` | Drives the ledger split — use `Short Put` or `Covered Call`. |
+| H | Premium | `$266.62` | `$` and commas are stripped. |
+| I | Strike | `$280` | Money. |
+| J | Current Price | `$284.10` | Money; blank for closed trades (shown as `—`). Use `=GOOGLEFINANCE($F2)` to keep it live for open positions. |
+| K | Buffer % | `8.5%` | `%` is stripped. |
+| L | Buffer Level | `🟢 Safe` | One of six categories (see [Buffer levels](#buffer-levels)); a leading emoji is stripped (`🟢 Safe` → `Safe`). |
+| M | Notional Risk | `$56,000` | Money — max notional on the position. |
+| N | Duration | `31` | Integer (days). |
+| O | Est. Yield | `6.2%` | Percent — estimated annualized yield. |
+| P | Closed On | `Jan 10, 26` | Date; blank while open. |
+| Q | Gain / Loss | `$266.62` | Realized P&L; positive = win, negative = loss. |
+| R | Capital | `$56,000` | Money. |
+| S | Real Yield | `5.9%` | Percent — realized annualized yield. |
+
+Money cells may include `$` and thousands separators; percent cells may include
+`%` — both are parsed leniently. Blank cells become empty/`null` and render as
+`—`.
+
+### Buffer levels
+
+The dashboard keys its buffer filter, sorting, colors, and risk-scenario
+probabilities off column L, so — **after the emoji is stripped** — the label must
+be exactly one of these six:
+
+| Label | Buffer (K) | Meaning |
+|-------|-----------|---------|
+| `Very Safe` | `> 20%` | Far out of the money |
+| `Safe` | `10–20%` | Comfortable cushion |
+| `Alert` | `5–10%` | Getting close |
+| `Danger` | `0–5%` | Near the strike |
+| `ITM` | `-5–0%` | In the money |
+| `Deep ITM` | `< -5%` | Well in the money |
+
+The **thresholds are yours to choose** — only the six label names are fixed.
+These are the cutoffs I use (column K holds the buffer as a decimal, e.g. `0.2`
+= 20%), computed in the sheet so column L stays in sync automatically:
+
+```
+=IF($K2="","",IF($K2>0.2,"✅ Very Safe",IF($K2>0.1,"🟢 Safe",IF($K2>0.05,"⚠️ Alert",IF($K2>0,"❗ Danger",IF($K2>-0.05,"🔴 ITM","🔴 Deep ITM"))))))
+```
+
+### Example rows
+
+Six real trades covering both types and all four statuses. Note how **open**
+positions (numeric column C) carry live columns (Price, Buffer, Level, Est.
+Yield) while the closed columns are blank, and **closed/assigned/expired** rows
+are the reverse. Column D (Position) is left blank since it's ignored.
+
+| A Acquired | B Expires | C Days/Status | D Position | E Contracts | F Ticker | G Type | H Premium | I Strike | J Price | K Buffer | L Level | M Notional | N Duration | O Est. Yield | P Closed On | Q Gain/Loss | R Capital | S Real Yield |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| May 27, 26 | Aug 21, 26 | 29 | | 2 | KKR | Short Put | $268.65 | $75 | $95.97 | 21.85% | ✅ Very Safe | $15,000 | 86 | 7.6% | | | | |
+| Jun 11, 26 | Jul 31, 26 | 8 | | 1 | AMZN | Covered Call | $224.33 | $280 | $233.66 | 19.83% | 🟢 Safe | | 50 | | | | | |
+| Dec 16, 25 | Jan 16, 26 | CLOSED | | 2 | JPM | Short Put | | $280 | | | | | 31 | | Jan 13, 26 | +$266.62 | $56,000 | 6.21% |
+| Dec 16, 25 | Feb 20, 26 | CLOSED | | 1 | GOOGL | Covered Call | | $365 | | | | | 66 | | Feb 11, 26 | +$301.32 | | |
+| Nov 17, 25 | Feb 20, 26 | ASSIGNED | | 1 | MSFT | Short Put | | $435 | | | | | 95 | | Feb 20, 26 | -$3,201.67 | $43,500 | |
+| Jan 13, 26 | Feb 20, 26 | EXPIRED | | 2 | MRSH | Short Put | | $165 | | | | | 38 | | Feb 20, 26 | +$238.65 | $33,000 | 6.95% |
 
 ## Everyday commands
 
