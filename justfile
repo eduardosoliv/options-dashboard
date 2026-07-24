@@ -25,9 +25,9 @@ serve:
 fetch:
     cd fetcher && uv run python fetch_trades.py
 
-# Run all tests (fetcher + web).
-test:
-    cd fetcher && uv run pytest -v
+# Run all tests (fetcher + web). Pass a pytest verbosity flag, e.g. `just test -q`.
+test pytest_flag="-v":
+    cd fetcher && uv run pytest {{pytest_flag}}
     cd web && npm test
 
 # Lint everything without modifying files (style + bug patterns; no type-checking).
@@ -51,5 +51,5 @@ typecheck:
 hooks:
     pre-commit install
 
-# Full local gate: lint + typecheck + test.
-check: lint typecheck test
+# Full local gate: lint + typecheck + test (quiet pytest output).
+check: lint typecheck (test "-q")
