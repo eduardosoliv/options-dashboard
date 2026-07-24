@@ -660,7 +660,7 @@ export default function TradingDashboard({ tradesData }) {
         </div>
 
         {/* View tabs */}
-        <div className="flex gap-1 mb-6 bg-zinc-900/50 p-1 rounded-lg w-full sm:w-fit border border-zinc-800 overflow-x-auto">
+        <div className="flex gap-1 mb-6 bg-zinc-900/50 p-1 rounded-lg w-full border border-zinc-800 overflow-x-auto">
           {[
             { id: 'overview', label: 'Overview', icon: Activity },
             { id: 'pnl', label: 'P&L Analytics', icon: TrendingUp },
@@ -673,7 +673,7 @@ export default function TradingDashboard({ tradesData }) {
             <button
               key={v.id}
               onClick={() => setActiveView(v.id)}
-              className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 ${
+              className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 sm:flex-1 ${
                 activeView === v.id ? 'bg-amber-500 text-zinc-950' : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
@@ -2481,6 +2481,7 @@ function TradeLedger({ trades, totalCount, statusFilter, setStatusFilter, outcom
   const inPlay = trades.filter(t => t.status === 'IN PLAY');
   const wins = closed.filter(t => t.gainLoss > 0).length;
   const losses = closed.filter(t => t.gainLoss < 0).length;
+  const winRate = wins + losses > 0 ? (wins / (wins + losses)) * 100 : 0;
   const totalPnL = closed.reduce((s, t) => s + t.gainLoss, 0);
   const totalRisk = inPlay.reduce((s, t) => s + (t.riskLevel || 0), 0);
   const totalPremium = inPlay.reduce((s, t) => s + (t.premium || 0), 0);
@@ -2520,6 +2521,7 @@ function TradeLedger({ trades, totalCount, statusFilter, setStatusFilter, outcom
                 )}
                 <InlineStat label="Won" value={wins} accent="emerald" />
                 <InlineStat label="Lost" value={losses} accent="rose" />
+                <InlineStat label="Win Rate" value={`${winRate.toFixed(1)}%`} accent="sky" />
               </>
             )}
           </>
@@ -2620,6 +2622,7 @@ function CallsLedger({ trades, totalCount, statusFilter, setStatusFilter, outcom
   const totalPremium = inPlay.reduce((s, t) => s + (t.premium || 0), 0);
   const wins = closed.filter(t => t.gainLoss > 0).length;
   const losses = closed.filter(t => t.gainLoss < 0).length;
+  const winRate = wins + losses > 0 ? (wins / (wins + losses)) * 100 : 0;
 
   return (
     <div>
@@ -2649,6 +2652,7 @@ function CallsLedger({ trades, totalCount, statusFilter, setStatusFilter, outcom
                 )}
                 <InlineStat label="Won" value={wins} accent="emerald" />
                 <InlineStat label="Lost" value={losses} accent="rose" />
+                <InlineStat label="Win Rate" value={`${winRate.toFixed(1)}%`} accent="sky" />
               </>
             )}
           </>
