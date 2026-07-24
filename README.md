@@ -12,7 +12,7 @@ Google Sheet (GOOGLEFINANCE keeps in-play quotes live)
         │  Sheets API — OAuth, scope: spreadsheets.readonly, FORMATTED_VALUE
         ▼
   fetcher/fetch_trades.py ──writes──▶ web/dist/trades.json ──served──▶ dashboard
-   (launchd, every 10 min)             (atomic write)        (static)   (re-fetch/10 min)
+   (run on a schedule)                 (atomic write)        (static)   (re-fetch/10 min)
 ```
 
 Three decoupled parts:
@@ -23,8 +23,10 @@ Three decoupled parts:
   dashboard beats a broken one.
 - **`web/`** — Vite + React + Tailwind v4. Loads `trades.json` on mount and every
   10 minutes; the analytics/charts recompute from that data.
-- **`scripts/`** — two macOS launchd jobs: one runs the fetcher on a 10-minute
-  interval, one serves the built app on `http://localhost:4173`.
+- **`scripts/`** — optional macOS launchd jobs: one runs the fetcher on a
+  10-minute interval, one serves the built app on `http://localhost:4173`. On
+  other platforms, run `just fetch` on whatever scheduler you prefer (cron,
+  systemd timer, etc.).
 
 ## Prerequisites
 
@@ -100,6 +102,9 @@ All via `just` (run `just --list` to see them):
 Prefer the raw tools? `cd fetcher && uv run pytest` / `uv run ruff check` /
 `uv run mypy .`; `cd web && npm test` / `npm run lint` / `npm run format`.
 
+**After changing the dashboard code:** `just build`, then `just fetch` once to
+repopulate `web/dist/trades.json`.
+
 ## Tooling
 
 All type-checkers and linters run in **strict** mode:
@@ -125,28 +130,6 @@ All type-checkers and linters run in **strict** mode:
 - **Pre-commit:** `.pre-commit-config.yaml` runs ruff, mypy, and Biome on staged
   files via the project's own pinned tool versions. Enable with `just hooks`.
 
-## Run it on a schedule (launchd)
-
-```bash
-cp scripts/net.eduardooliveira.options-*.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/net.eduardooliveira.options-serve.plist
-launchctl load ~/Library/LaunchAgents/net.eduardooliveira.options-fetch.plist
-open http://localhost:4173
-```
-
-The fetcher runs every 10 minutes (logs at `fetch.log` / `fetch.err.log`); the
-open dashboard tab re-fetches every 10 minutes on its own.
-
-**After changing the dashboard code:** `just build`, then `just fetch` once (or
-wait for the next tick) to repopulate `web/dist/trades.json`.
-
-**Stop it:**
-
-```bash
-launchctl unload ~/Library/LaunchAgents/net.eduardooliveira.options-fetch.plist
-launchctl unload ~/Library/LaunchAgents/net.eduardooliveira.options-serve.plist
-```
-
 ## Troubleshooting
 
 - **Dashboard shows "Could not load trades.json":** the fetcher hasn't produced
@@ -154,9 +137,9 @@ launchctl unload ~/Library/LaunchAgents/net.eduardooliveira.options-serve.plist
   `fetch.err.log`.
 - **Browser consent re-appears / token errors:** delete `fetcher/token.json` and
   re-run the step-7 consent command.
-- **`launchctl` fetch job fails silently:** it needs a valid `config.toml` at the
-  project root plus `fetcher/credentials.json` + `fetcher/token.json`. launchd
-  uses a minimal PATH, which is why the script calls `uv` by absolute path.
+- **`just fetch` fails silently:** it needs a valid `config.toml` at the project
+  root plus `fetcher/credentials.json` + `fetcher/token.json`; check
+  `fetch.err.log`.
 - **Empty/zero trades:** the fetcher refuses to overwrite with an empty result,
   so the last good `trades.json` stays in place; check that the tab name matches
   `sheet_range` in `config.toml`.
