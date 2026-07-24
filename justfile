@@ -27,7 +27,7 @@ fetch:
 
 # Run all tests (fetcher + web).
 test:
-    cd fetcher && uv run pytest -q
+    cd fetcher && uv run pytest -v
     cd web && npm test
 
 # Lint everything without modifying files (style + bug patterns; no type-checking).
