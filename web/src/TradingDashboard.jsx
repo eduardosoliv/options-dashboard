@@ -507,6 +507,19 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
       .sort((a, b) => b.total - a.total);
   }, []);
 
+  // Premium in play grouped by ticker — split by strategy
+  const premiumInPlayByTicker = useMemo(() => {
+    const map = {};
+    TRADES.filter(t => t.status === 'IN PLAY').forEach(t => {
+      if (!map[t.ticker]) map[t.ticker] = { puts: 0, calls: 0 };
+      if (t.type === 'Short Put') map[t.ticker].puts += (t.premium || 0);
+      else if (t.type === 'Covered Call') map[t.ticker].calls += (t.premium || 0);
+    });
+    return Object.entries(map)
+      .map(([ticker, v]) => ({ ticker, puts: v.puts, calls: v.calls, total: v.puts + v.calls }))
+      .sort((a, b) => b.total - a.total);
+  }, []);
+
   // Notional risk grouped by ticker — only short puts have notional risk
   const notionalByTicker = useMemo(() => {
     const map = {};
@@ -1770,6 +1783,53 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                     <LabelList
                       dataKey="total"
                       position="right"
+                      style={{ fill: '#fafafa', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 500 }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Premium in play by ticker */}
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
+              <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Premium in Play</div>
+              <div className="font-serif text-xl sm:text-2xl font-semibold mb-4">By Ticker</div>
+              <ResponsiveContainer width="100%" height={Math.max(300, premiumInPlayByTicker.length * 28)}>
+                <BarChart data={premiumInPlayByTicker} layout="vertical" margin={{ left: 10, right: 75, top: 10, bottom: 10 }}>
+                  <CartesianGrid stroke="#27272a" strokeDasharray="2 2" horizontal={false} />
+                  <XAxis type="number" stroke="#71717a" fontSize={10} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                  <YAxis dataKey="ticker" type="category" stroke="#71717a" fontSize={10} width={42} />
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                    formatter={(v, name) => [fmtCurrency(v), name === 'puts' ? 'Short Puts' : 'Covered Calls']}
+                  />
+                  <Legend
+                    verticalAlign="top"
+                    height={36}
+                    iconType="circle"
+                    formatter={(v) => v === 'puts' ? 'Short Puts' : 'Covered Calls'}
+                    wrapperStyle={{ fontSize: 11, fontFamily: 'IBM Plex Mono, monospace', color: '#a1a1aa' }}
+                  />
+                  <Bar dataKey="puts" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]}>
+                    {/* Total label for puts-only tickers (the calls bar below is zero-width, so its LabelList wouldn't render) */}
+                    <LabelList
+                      content={({ x, y, width, height, index }) => {
+                        const d = premiumInPlayByTicker[index];
+                        if (!d || d.calls > 0) return null;
+                        return (
+                          <text x={x + width + 8} y={y + height / 2} dominantBaseline="central" style={{ fill: '#fafafa', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 500 }}>
+                            {fmtCurrency(d.total)}
+                          </text>
+                        );
+                      }}
+                    />
+                  </Bar>
+                  <Bar dataKey="calls" stackId="a" fill="#38bdf8" radius={[0, 4, 4, 0]}>
+                    <LabelList
+                      dataKey="total"
+                      position="right"
+                      formatter={(v) => fmtCurrency(v)}
                       style={{ fill: '#fafafa', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 500 }}
                     />
                   </Bar>
