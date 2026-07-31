@@ -1937,19 +1937,25 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                       <div className={`text-xs font-mono uppercase tracking-wider ${a.label}`}>−{s.drawdown}% Drawdown</div>
                       <TrendingDown size={14} className={a.num} />
                     </div>
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-1">Capital Deployed</div>
-                    <div className={`font-serif text-3xl font-bold num ${a.num}`}>
-                      {fmtCurrencyWhole(s.totalAssignedCapital)}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-1">Capital Deployed</div>
+                        <div className={`font-serif text-3xl font-bold num ${a.num}`}>
+                          {fmtCurrencyWhole(s.totalAssignedCapital)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-1">Paper Loss</div>
+                        <div className={`font-serif text-3xl font-bold num ${s.totalLoss > 0 ? 'text-rose-400' : 'text-zinc-400'}`}>
+                          {fmtCurrencyWhole(s.totalLoss)}
+                        </div>
+                      </div>
                     </div>
                     <div className="text-xs font-mono text-zinc-500 mt-2 leading-relaxed">
                       <div>
                         <span className={`${a.num} font-semibold`}>{s.assignedCount}</span>
                         <span className="text-zinc-600"> / {s.totalCount}</span>
                         <span className="ml-1">assigned</span>
-                      </div>
-                      <div className="mt-0.5">
-                        <span className={s.assignedCount > 0 ? 'text-rose-400' : 'text-zinc-400'}>{fmtCurrency(s.totalLoss)}</span>{' '}
-                        <span className="text-zinc-600">paper loss</span>
                       </div>
                     </div>
                   </div>
