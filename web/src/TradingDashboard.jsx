@@ -563,7 +563,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
   // Net P&L for the scenario = sum across all short puts of (premium kept - assignment loss).
   const scenarios = useMemo(() => {
     const shortPuts = TRADES.filter(t => t.status === 'IN PLAY' && t.type === 'Short Put' && t.price);
-    const drawdowns = [10, 15, 20, 25];
+    const drawdowns = [10, 15, 20, 25, 30, 35];
     return drawdowns.map(dd => {
       let netPnL = 0;
       let assignedCount = 0;
@@ -1908,7 +1908,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               </ul>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {scenarios.map(s => {
                 const totalCapital = scenarios[scenarios.length - 1].totalCount > 0
                   ? TRADES.filter(t => t.status === 'IN PLAY' && t.type === 'Short Put').reduce((sum, t) => sum + (t.riskLevel || 0), 0)
