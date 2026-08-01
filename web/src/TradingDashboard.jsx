@@ -224,14 +224,20 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
       m -= 1; if (m < 0) { m = 11; y -= 1; }
       return y * 100 + m;
     };
-    // Don't let the early-close split push premium into an already-realized month.
+    // Don't let the early-close split push premium into a month that has already
+    // ended. Floor it at the current calendar month (from the data-pull time),
+    // not merely the last month that recorded a close — otherwise, once a month
+    // fully elapses before any new close lands, its realized bar keeps absorbing
+    // next month's early premium and shows a stale forecast dot (e.g. a July dot
+    // on Aug 1). The floor takes whichever is later so mid-month still works.
     const lastRealizedKey = rows.length ? rows[rows.length - 1].key : null;
-    const clampKey = (key) => {
-      if (lastRealizedKey === null) return key;
-      const ord = Math.floor(key / 100) * 12 + (key % 100);
-      const lastOrd = Math.floor(lastRealizedKey / 100) * 12 + (lastRealizedKey % 100);
-      return ord < lastOrd ? lastRealizedKey : key;
-    };
+    const nowDate = updatedAt ? new Date(updatedAt) : new Date();
+    const currentMonthKey = nowDate.getFullYear() * 100 + nowDate.getMonth();
+    const ordOf = (key) => Math.floor(key / 100) * 12 + (key % 100);
+    const clampFloorKey = lastRealizedKey === null
+      ? currentMonthKey
+      : (ordOf(currentMonthKey) >= ordOf(lastRealizedKey) ? currentMonthKey : lastRealizedKey);
+    const clampKey = (key) => (ordOf(key) < ordOf(clampFloorKey) ? clampFloorKey : key);
     const ensureFmap = (fmap, key) => {
       if (!fmap[key]) fmap[key] = { key, label: `${MONTHS[key % 100]} ${String(Math.floor(key / 100)).slice(2)}`, central: 0, low: 0, high: 0 };
       return fmap[key];
