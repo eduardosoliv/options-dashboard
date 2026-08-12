@@ -1658,6 +1658,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                           <th className="px-3 py-3 text-right">Buffer to BE %</th>
                           <th className="px-3 py-3 text-right">Buffer Level</th>
                           <th className="px-3 py-3 text-right">Notional</th>
+                          <th className="px-3 py-3 text-right">Est. Yield (Ann.)</th>
                           <th className="px-3 py-3 text-right">Paper Loss</th>
                           <th className="px-3 py-3 text-right">Loss (incl. premium)</th>
                         </tr>
@@ -1712,6 +1713,9 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                               <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-400">
                                 {t.riskLevel ? fmtCurrencyWhole(t.riskLevel) : '—'}
                               </td>
+                              <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">
+                                {t.type === 'Short Put' ? fmtPct(t.estYield) : '—'}
+                              </td>
                               <td className="px-3 py-2 text-right font-mono num text-xs">
                                 <span className={paperLoss > 0 ? 'text-rose-400' : 'text-zinc-600'}>
                                   {paperLoss > 0 ? `-${fmtCurrencyWhole(paperLoss)}` : '$0'}
@@ -1734,6 +1738,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                           <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-zinc-200">
                             {fmtCurrencyWhole(atRisk.reduce((s, t) => s + (t.riskLevel || 0), 0))}
                           </td>
+                          <td className="px-3 py-2.5" />
                           <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-rose-400">
                             {(() => {
                               const totalPaper = atRisk.reduce((s, t) =>
