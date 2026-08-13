@@ -811,70 +811,88 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               </ResponsiveContainer>
             </div>
 
-            {/* Top tickers */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
-                <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Top Winners</div>
-                <div className="font-serif text-xl font-semibold mb-4">By Ticker</div>
-                <div className="space-y-2">
-                  {tickerPnL.filter(t => t.pnl > 0).slice(0, 5).map(t => (
-                    <div key={t.ticker} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0">
-                      <span className="font-mono font-semibold">{t.ticker}</span>
-                      <span className="font-mono num text-emerald-400">+{fmtCurrency(t.pnl)}</span>
-                    </div>
-                  ))}
+            {/* Top winners */}
+            <div className="bg-zinc-900/40 border border-emerald-500/20 rounded-xl p-4 sm:p-6">
+              <div className="text-xs font-mono uppercase tracking-wider text-emerald-500/70 mb-4">Top Winners</div>
+              <div className="grid md:grid-cols-2 gap-4 md:gap-8">
+                <div>
+                  <div className="font-serif text-xl font-semibold mb-4">By Ticker</div>
+                  <div className="space-y-2">
+                    {tickerPnL.filter(t => t.pnl > 0).slice(0, 5).map((t, i) => (
+                      <div key={t.ticker} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0">
+                        <span className="font-mono font-semibold flex items-center gap-2">
+                          <span className="w-5 text-center text-base leading-none">
+                            {i < 3 ? ['🥇', '🥈', '🥉'][i] : <span className="text-xs text-zinc-600">{i + 1}</span>}
+                          </span>
+                          {t.ticker}
+                        </span>
+                        <span className="font-mono num text-emerald-400">+{fmtCurrency(t.pnl)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
-                <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Top Losers</div>
-                <div className="font-serif text-xl font-semibold mb-4">By Ticker</div>
-                <div className="space-y-2">
-                  {tickerPnL.filter(t => t.pnl < 0).sort((a, b) => a.pnl - b.pnl).slice(0, 5).map(t => (
-                    <div key={t.ticker} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0">
-                      <span className="font-mono font-semibold">{t.ticker}</span>
-                      <span className="font-mono num text-rose-400">{fmtCurrency(t.pnl)}</span>
-                    </div>
-                  ))}
-                  {tickerPnL.filter(t => t.pnl < 0).length === 0 && (
-                    <div className="text-zinc-500 text-sm py-2">No losing tickers</div>
-                  )}
+                <div>
+                  <div className="font-serif text-xl font-semibold mb-4">By Trade</div>
+                  <div className="space-y-2">
+                    {TRADES.filter(isClosed).filter(t => t.gainLoss > 0).sort((a, b) => b.gainLoss - a.gainLoss).slice(0, 5).map((t, i) => (
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0 gap-3">
+                        <span className="font-mono text-sm whitespace-nowrap flex items-center gap-2">
+                          <span className="w-5 text-center text-base leading-none">
+                            {i < 3 ? ['🥇', '🥈', '🥉'][i] : <span className="text-xs text-zinc-600">{i + 1}</span>}
+                          </span>
+                          <span>
+                            <span className="font-semibold">{t.ticker}</span>
+                            <span className="text-zinc-500 font-normal"> {t.strike} {t.type === 'Short Put' ? 'Put' : 'Call'} {t.contracts}×</span>
+                          </span>
+                        </span>
+                        <span className="font-mono num text-emerald-400 whitespace-nowrap">+{fmtCurrency(t.gainLoss)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Top trades */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
-                <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Top Winners</div>
-                <div className="font-serif text-xl font-semibold mb-4">By Trade</div>
-                <div className="space-y-2">
-                  {TRADES.filter(isClosed).filter(t => t.gainLoss > 0).sort((a, b) => b.gainLoss - a.gainLoss).slice(0, 5).map((t, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0 gap-3">
-                      <span className="font-mono text-sm whitespace-nowrap">
-                        <span className="font-semibold">{t.ticker}</span>
-                        <span className="text-zinc-500 font-normal"> {t.strike} {t.type === 'Short Put' ? 'Put' : 'Call'} {t.contracts}×</span>
-                      </span>
-                      <span className="font-mono num text-emerald-400 whitespace-nowrap">+{fmtCurrency(t.gainLoss)}</span>
-                    </div>
-                  ))}
+            {/* Top losers */}
+            <div className="bg-zinc-900/40 border border-rose-500/20 rounded-xl p-4 sm:p-6">
+              <div className="text-xs font-mono uppercase tracking-wider text-rose-500/70 mb-4">Top Losers</div>
+              <div className="grid md:grid-cols-2 gap-4 md:gap-8">
+                <div>
+                  <div className="font-serif text-xl font-semibold mb-4">By Ticker</div>
+                  <div className="space-y-2">
+                    {tickerPnL.filter(t => t.pnl < 0).sort((a, b) => a.pnl - b.pnl).slice(0, 5).map((t, i) => (
+                      <div key={t.ticker} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0">
+                        <span className="font-mono font-semibold flex items-center gap-2">
+                          <span className="w-5 text-center text-xs text-zinc-600">{i + 1}</span>
+                          {t.ticker}
+                        </span>
+                        <span className="font-mono num text-rose-400">{fmtCurrency(t.pnl)}</span>
+                      </div>
+                    ))}
+                    {tickerPnL.filter(t => t.pnl < 0).length === 0 && (
+                      <div className="text-zinc-500 text-sm py-2">No losing tickers</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
-                <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Top Losers</div>
-                <div className="font-serif text-xl font-semibold mb-4">By Trade</div>
-                <div className="space-y-2">
-                  {TRADES.filter(isClosed).filter(t => t.gainLoss < 0).sort((a, b) => a.gainLoss - b.gainLoss).slice(0, 5).map((t, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0 gap-3">
-                      <span className="font-mono text-sm whitespace-nowrap">
-                        <span className="font-semibold">{t.ticker}</span>
-                        <span className="text-zinc-500 font-normal"> {t.strike} {t.type === 'Short Put' ? 'Put' : 'Call'} {t.contracts}×</span>
-                      </span>
-                      <span className="font-mono num text-rose-400 whitespace-nowrap">{fmtCurrency(t.gainLoss)}</span>
-                    </div>
-                  ))}
-                  {TRADES.filter(isClosed).filter(t => t.gainLoss < 0).length === 0 && (
-                    <div className="text-zinc-500 text-sm py-2">No losing trades</div>
-                  )}
+                <div>
+                  <div className="font-serif text-xl font-semibold mb-4">By Trade</div>
+                  <div className="space-y-2">
+                    {TRADES.filter(isClosed).filter(t => t.gainLoss < 0).sort((a, b) => a.gainLoss - b.gainLoss).slice(0, 5).map((t, i) => (
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0 gap-3">
+                        <span className="font-mono text-sm whitespace-nowrap flex items-center gap-2">
+                          <span className="w-5 text-center text-xs text-zinc-600">{i + 1}</span>
+                          <span>
+                            <span className="font-semibold">{t.ticker}</span>
+                            <span className="text-zinc-500 font-normal"> {t.strike} {t.type === 'Short Put' ? 'Put' : 'Call'} {t.contracts}×</span>
+                          </span>
+                        </span>
+                        <span className="font-mono num text-rose-400 whitespace-nowrap">{fmtCurrency(t.gainLoss)}</span>
+                      </div>
+                    ))}
+                    {TRADES.filter(isClosed).filter(t => t.gainLoss < 0).length === 0 && (
+                      <div className="text-zinc-500 text-sm py-2">No losing trades</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
