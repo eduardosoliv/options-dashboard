@@ -526,16 +526,23 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
       .sort((a, b) => b.total - a.total);
   }, []);
 
-  // Notional risk grouped by ticker — only short puts have notional risk
+  // Notional risk grouped by ticker — only short puts have notional risk.
+  // Split by expiry year: notional2026, notional2027, notionalBeyond (after 2027).
   const notionalByTicker = useMemo(() => {
     const map = {};
     TRADES.filter(t => t.status === 'IN PLAY' && t.type === 'Short Put').forEach(t => {
-      if (!map[t.ticker]) map[t.ticker] = { notional: 0, contracts: 0 };
-      map[t.ticker].notional += (t.riskLevel || 0);
+      if (!map[t.ticker]) map[t.ticker] = { notional: 0, notional2026: 0, notional2027: 0, notionalBeyond: 0, contracts: 0 };
+      const risk = t.riskLevel || 0;
+      const d = parseDate(t.expires);
+      const yr = d ? d.getFullYear() : 0;
+      map[t.ticker].notional += risk;
+      if (yr > 2027) map[t.ticker].notionalBeyond += risk;
+      else if (yr === 2027) map[t.ticker].notional2027 += risk;
+      else map[t.ticker].notional2026 += risk;
       map[t.ticker].contracts += t.contracts;
     });
     return Object.entries(map)
-      .map(([ticker, v]) => ({ ticker, notional: v.notional, contracts: v.contracts }))
+      .map(([ticker, v]) => ({ ticker, notional: v.notional, notional2026: v.notional2026, notional2027: v.notional2027, notionalBeyond: v.notionalBeyond, contracts: v.contracts }))
       .sort((a, b) => b.notional - a.notional);
   }, []);
 
@@ -1954,12 +1961,21 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                         <div style={TOOLTIP_STYLE.contentStyle}>
                           <div style={TOOLTIP_STYLE.labelStyle}>{d.ticker}</div>
                           <div style={TOOLTIP_STYLE.itemStyle}>Notional Risk: {fmtCurrencyWhole(d.notional)}</div>
+                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#fb7185' }}>Expires 2026: {fmtCurrencyWhole(d.notional2026)}</div>
+                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#fbbf24' }}>Expires 2027: {fmtCurrencyWhole(d.notional2027)}</div>
+                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#38bdf8' }}>Beyond 2027: {fmtCurrencyWhole(d.notionalBeyond)}</div>
                           <div style={TOOLTIP_STYLE.itemStyle}>Contracts: {d.contracts}</div>
                         </div>
                       );
                     }}
                   />
-                  <Bar dataKey="notional" fill="#fb7185" radius={[0, 4, 4, 0]}>
+                  <Legend
+                    wrapperStyle={{ fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}
+                    formatter={(value) => value === 'notional2026' ? 'Expires 2026' : value === 'notional2027' ? 'Expires 2027' : 'Beyond 2027'}
+                  />
+                  <Bar dataKey="notional2026" stackId="risk" fill="#fb7185" stroke="#18181b" strokeWidth={1} radius={[4, 0, 0, 4]} />
+                  <Bar dataKey="notional2027" stackId="risk" fill="#fbbf24" stroke="#18181b" strokeWidth={1} />
+                  <Bar dataKey="notionalBeyond" stackId="risk" fill="#38bdf8" stroke="#18181b" strokeWidth={1} radius={[0, 4, 4, 0]}>
                     <LabelList
                       dataKey="notional"
                       position="right"
