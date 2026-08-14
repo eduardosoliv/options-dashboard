@@ -16,6 +16,13 @@ const fmtCurrencyWhole = (n) => {
   const sign = n < 0 ? '-' : '';
   return `${sign}$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 };
+const fmtCurrencyCompact = (n) => {
+  if (n === null || n === undefined) return '—';
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1000) return `${sign}$${(Math.floor(abs / 100) / 10).toFixed(1)}k`;
+  return `${sign}$${Math.round(abs).toLocaleString('en-US')}`;
+};
 const fmtPct = (n) => n === null || n === undefined ? '—' : `${n.toFixed(2)}%`;
 const bufferIcon = (category) => {
   if (category === 'Very Safe') return '✅';
@@ -47,11 +54,12 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
   const TRADES = tradesData;
   const updatedLabel = updatedAt
     ? new Date(updatedAt).toLocaleString('en-US', {
-        month: 'long',
+        month: 'short',
         day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
+        year: '2-digit',
+        hour: '2-digit',
         minute: '2-digit',
+        hour12: false,
       })
     : 'unknown';
   const [statusFilter, setStatusFilter] = useState('in_play'); // all, in_play, closed
@@ -130,9 +138,21 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
     const riskInPlay = inPlay.reduce((s,t) => s + (t.riskLevel || 0), 0);
     const inPlayShortPuts = inPlay.filter(t => t.type === 'Short Put').length;
     const inPlayCoveredCalls = inPlay.filter(t => t.type === 'Covered Call').length;
-    const inPlay2026 = inPlay.filter(t => { const d = parseDate(t.expires); return d && d.getFullYear() === 2026; }).length;
+    const inPlayByYear = (yr) => inPlay.filter(t => { const d = parseDate(t.expires); return d && d.getFullYear() === yr; });
+    const inPlay2026Trades = inPlayByYear(2026);
+    const inPlay2026 = inPlay2026Trades.length;
     const inPlayBeyond2026 = inPlay.length - inPlay2026;
-    const premiumInPlay2026 = inPlay.filter(t => { const d = parseDate(t.expires); return d && d.getFullYear() === 2026; }).reduce((s,t) => s + (t.premium || 0), 0);
+    const premiumInPlay2026 = inPlay2026Trades.reduce((s,t) => s + (t.premium || 0), 0);
+    const inPlay2026ShortPuts = inPlay2026Trades.filter(t => t.type === 'Short Put').length;
+    const inPlay2026CoveredCalls = inPlay2026Trades.filter(t => t.type === 'Covered Call').length;
+    const inPlay2027Trades = inPlayByYear(2027);
+    const premiumInPlay2027 = inPlay2027Trades.reduce((s,t) => s + (t.premium || 0), 0);
+    const inPlay2027ShortPuts = inPlay2027Trades.filter(t => t.type === 'Short Put').length;
+    const inPlay2027CoveredCalls = inPlay2027Trades.filter(t => t.type === 'Covered Call').length;
+    const inPlay2028Trades = inPlayByYear(2028);
+    const premiumInPlay2028 = inPlay2028Trades.reduce((s,t) => s + (t.premium || 0), 0);
+    const inPlay2028ShortPuts = inPlay2028Trades.filter(t => t.type === 'Short Put').length;
+    const inPlay2028CoveredCalls = inPlay2028Trades.filter(t => t.type === 'Covered Call').length;
     return {
       totalTrades: TRADES.length,
       closed: closed.length,
@@ -150,6 +170,14 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
       inPlay2026,
       inPlayBeyond2026,
       premiumInPlay2026,
+      inPlay2026ShortPuts,
+      inPlay2026CoveredCalls,
+      premiumInPlay2027,
+      inPlay2027ShortPuts,
+      inPlay2027CoveredCalls,
+      premiumInPlay2028,
+      inPlay2028ShortPuts,
+      inPlay2028CoveredCalls,
     };
   }, []);
 
@@ -667,21 +695,30 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
           </div>
           <div className="grid grid-cols-2 sm:flex gap-x-6 gap-y-4 sm:gap-10">
             <div>
-              <div className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">In Play</div>
+              <div className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">In Play 2026</div>
               <div className="font-serif text-3xl sm:text-4xl font-bold num text-sky-400">
-                {fmtCurrency(stats.premiumInPlay)}
+                {fmtCurrencyCompact(stats.premiumInPlay2026)}
               </div>
               <div className="text-xs font-mono text-zinc-500 mt-1">
-                {stats.inPlayShortPuts} short put{stats.inPlayShortPuts !== 1 ? 's' : ''} · {stats.inPlayCoveredCalls} covered call{stats.inPlayCoveredCalls !== 1 ? 's' : ''}
+                {stats.inPlay2026ShortPuts} short put{stats.inPlay2026ShortPuts !== 1 ? 's' : ''} · {stats.inPlay2026CoveredCalls} CC
               </div>
             </div>
             <div>
-              <div className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Expiring 2026</div>
-              <div className="font-serif text-3xl sm:text-4xl font-bold num text-amber-400">
-                {fmtCurrency(stats.premiumInPlay2026)}
+              <div className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">In Play 2027</div>
+              <div className="font-serif text-3xl sm:text-4xl font-bold num text-sky-400/70">
+                {fmtCurrencyCompact(stats.premiumInPlay2027)}
               </div>
               <div className="text-xs font-mono text-zinc-500 mt-1">
-                {stats.inPlay2026} in play · {stats.inPlayBeyond2026} LEAPS to 2028
+                {stats.inPlay2027ShortPuts} short put{stats.inPlay2027ShortPuts !== 1 ? 's' : ''} · {stats.inPlay2027CoveredCalls} CC
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] sm:text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">LEAPS (2028)</div>
+              <div className="font-serif text-3xl sm:text-4xl font-bold num text-sky-400/65">
+                {fmtCurrencyCompact(stats.premiumInPlay2028)}
+              </div>
+              <div className="text-xs font-mono text-zinc-500 mt-1">
+                {stats.inPlay2028ShortPuts} short put{stats.inPlay2028ShortPuts !== 1 ? 's' : ''} · {stats.inPlay2028CoveredCalls} CC
               </div>
             </div>
             <div className="sm:text-right">
