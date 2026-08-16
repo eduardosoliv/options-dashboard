@@ -2000,7 +2000,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                           <div style={TOOLTIP_STYLE.itemStyle}>Notional Risk: {fmtCurrencyWhole(d.notional)}</div>
                           <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#fb7185' }}>Expires 2026: {fmtCurrencyWhole(d.notional2026)}</div>
                           <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#fbbf24' }}>Expires 2027: {fmtCurrencyWhole(d.notional2027)}</div>
-                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#38bdf8' }}>Beyond 2027: {fmtCurrencyWhole(d.notionalBeyond)}</div>
+                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#38bdf8' }}>LEAPS (2028): {fmtCurrencyWhole(d.notionalBeyond)}</div>
                           <div style={TOOLTIP_STYLE.itemStyle}>Contracts: {d.contracts}</div>
                         </div>
                       );
@@ -2008,7 +2008,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                   />
                   <Legend
                     wrapperStyle={{ fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}
-                    formatter={(value) => value === 'notional2026' ? 'Expires 2026' : value === 'notional2027' ? 'Expires 2027' : 'Beyond 2027'}
+                    formatter={(value) => value === 'notional2026' ? 'Expires 2026' : value === 'notional2027' ? 'Expires 2027' : 'LEAPS (2028)'}
                   />
                   <Bar dataKey="notional2026" stackId="risk" fill="#fb7185" stroke="#18181b" strokeWidth={1} radius={[4, 0, 0, 4]} />
                   <Bar dataKey="notional2027" stackId="risk" fill="#fbbf24" stroke="#18181b" strokeWidth={1} />
