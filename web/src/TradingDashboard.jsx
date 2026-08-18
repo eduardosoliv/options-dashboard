@@ -364,7 +364,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
     const assigned = closedPuts.filter(t => t.status === 'ASSIGNED').length;
     const expired = closedPuts.length - assigned;
     return [
-      { name: 'Expired', value: expired, fill: '#34d399' },
+      { name: 'Expired / Closed', value: expired, fill: '#34d399' },
       { name: 'Assigned', value: assigned, fill: '#f59e0b' },
     ];
   }, []);
@@ -1407,7 +1407,12 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                         innerRadius={60} outerRadius={105}
                         paddingAngle={2}
                         dataKey="value"
-                        label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                        label={({ x, y, name, value, percent, fill, textAnchor }) => (
+                          <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fill={fill} fontSize={13}>
+                            <tspan x={x} dy="-0.35em">{name}</tspan>
+                            <tspan x={x} dy="1.25em">{`${value} (${(percent * 100).toFixed(0)}%)`}</tspan>
+                          </text>
+                        )}
                       >
                         {putOutcomeSplit.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                       </Pie>
