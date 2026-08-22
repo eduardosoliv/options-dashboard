@@ -1835,6 +1835,122 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               })()}
             </div>
 
+            {/* Open positions expiring soon */}
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl overflow-hidden">
+              <div className="p-4 sm:p-6 pb-3">
+                <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Open Positions</div>
+                <div className="font-serif text-xl sm:text-2xl font-semibold">Expiring in &lt; 30 Days</div>
+              </div>
+              {(() => {
+                const now = updatedAt ? new Date(updatedAt) : new Date();
+                const MS_DAY = 86400000;
+                const daysLeft = (t) => {
+                  const d = parseDate(t.expires);
+                  return d ? Math.ceil((d.getTime() - now.getTime()) / MS_DAY) : null;
+                };
+                const soon = TRADES
+                  .filter(t => t.status === 'IN PLAY')
+                  .map(t => ({ ...t, dte: daysLeft(t) }))
+                  .filter(t => t.dte !== null && t.dte < 30)
+                  .sort((a, b) => a.dte - b.dte);
+                if (soon.length === 0) {
+                  return (
+                    <div className="px-4 sm:px-6 pb-5 text-sm font-mono text-emerald-500/80">
+                      ✓ No open positions expiring within 30 days.
+                    </div>
+                  );
+                }
+                const dteColor = (d) => d <= 7 ? 'text-rose-400' : d <= 14 ? 'text-amber-400' : 'text-zinc-300';
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-zinc-900 border-y border-zinc-800 text-[10px] uppercase tracking-wider text-zinc-500">
+                        <tr>
+                          <th className="px-3 py-3 text-left">Ticker</th>
+                          <th className="px-3 py-3 text-left">Type</th>
+                          <th className="px-3 py-3 text-left">Expires</th>
+                          <th className="px-3 py-3 text-right">Days Left</th>
+                          <th className="px-3 py-3 text-right">Strike</th>
+                          <th className="px-3 py-3 text-right">Price</th>
+                          <th className="px-3 py-3 text-right">Buffer %</th>
+                          <th className="px-3 py-3 text-right">Buffer to BE %</th>
+                          <th className="px-3 py-3 text-right">Buffer Level</th>
+                          <th className="px-3 py-3 text-right">Notional</th>
+                          <th className="px-3 py-3 text-right">Est. Yield (Ann.)</th>
+                          <th className="px-3 py-3 text-right">Premium</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {soon.map((t, i) => {
+                          const premPerShare = t.premium / (100 * t.contracts);
+                          const breakEven = t.type === 'Short Put'
+                            ? t.strike - premPerShare
+                            : t.type === 'Covered Call'
+                              ? t.strike + premPerShare
+                              : null;
+                          const bufferToBE = (breakEven && t.price)
+                            ? t.type === 'Short Put'
+                              ? ((t.price - breakEven) / t.price) * 100
+                              : ((breakEven - t.price) / t.price) * 100
+                            : null;
+                          return (
+                          <tr key={i} className="border-b border-zinc-800/40 hover:bg-zinc-900/60 transition-colors">
+                            <td className="px-3 py-2 font-mono font-semibold whitespace-nowrap">
+                              {t.ticker} <span className="text-zinc-500 font-normal">{t.contracts}×</span>
+                            </td>
+                            <td className="px-3 py-2 font-mono text-xs text-zinc-400">{t.type}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-zinc-400">{t.expires}</td>
+                            <td className="px-3 py-2 text-right font-mono num text-xs">
+                              <span className={dteColor(t.dte)}>{t.dte}d</span>
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono num">${t.strike}</td>
+                            <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">${t.price?.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-right font-mono num text-xs">
+                              <span className={riskColor(t.riskCategory)}>{fmtPct(t.buffer)}</span>
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono num text-xs">
+                              <span className={bufferToBE !== null && bufferToBE >= 0 ? 'text-zinc-200' : 'text-rose-400'}>
+                                {bufferToBE !== null ? fmtPct(bufferToBE) : '—'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <span className={`font-mono text-xs ${riskColor(t.riskCategory)}`}>
+                                {bufferIcon(t.riskCategory)} {t.riskCategory}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-400">
+                              {t.riskLevel ? fmtCurrencyWhole(t.riskLevel) : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">
+                              {t.type === 'Short Put' ? fmtPct(t.estYield) : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono num text-xs text-emerald-400">
+                              {fmtCurrencyWhole(t.premium)}
+                            </td>
+                          </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="border-t border-zinc-700">
+                        <tr>
+                          <td colSpan={9} className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                            {soon.length} position{soon.length === 1 ? '' : 's'} · Totals
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-zinc-200">
+                            {fmtCurrencyWhole(soon.reduce((s, t) => s + (t.riskLevel || 0), 0))}
+                          </td>
+                          <td className="px-3 py-2.5" />
+                          <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-emerald-400">
+                            {fmtCurrencyWhole(soon.reduce((s, t) => s + (t.premium || 0), 0))}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Open positions by ticker */}
             <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
               <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Open Positions</div>
