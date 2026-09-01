@@ -1703,6 +1703,20 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                 const atRisk = TRADES
                   .filter(t => t.status === 'IN PLAY' && ['Alert', 'Danger', 'ITM', 'Deep ITM'].includes(t.riskCategory))
                   .sort((a, b) => (a.buffer || 0) - (b.buffer || 0));
+                // Paper loss = intrinsic cost if assigned at current price.
+                //   Short Put (ITM, price < strike):  (strike − price) × 100 × contracts  — cash owed above market
+                //   Covered Call (ITM, price > strike): (price − strike) × 100 × contracts  — forfeited upside
+                const paperLossOf = (t) =>
+                  (t.type === 'Short Put' && t.price < t.strike)
+                    ? (t.strike - t.price) * 100 * t.contracts
+                    : (t.type === 'Covered Call' && t.price > t.strike)
+                      ? (t.price - t.strike) * 100 * t.contracts
+                      : 0;
+                // Net loss = paper loss minus premium collected, floored at 0 (only bites past break-even).
+                const netLossOf = (t) => {
+                  const pl = paperLossOf(t);
+                  return pl > 0 ? Math.max(pl - t.premium, 0) : 0;
+                };
                 if (atRisk.length === 0) {
                   return (
                     <div className="px-4 sm:px-6 pb-5 text-sm font-mono text-emerald-500/80">
@@ -1744,14 +1758,9 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                               ? ((t.price - breakEven) / t.price) * 100
                               : ((breakEven - t.price) / t.price) * 100
                             : null;
-                          // Paper loss: intrinsic cost if assigned at current price (ITM short puts only)
-                          const paperLoss = (t.type === 'Short Put' && t.price < t.strike)
-                            ? (t.strike - t.price) * 100 * t.contracts
-                            : 0;
-                          // Net loss including premium collected: only shown when still net-negative (price below break-even)
-                          const netLoss = (t.type === 'Short Put' && paperLoss > 0)
-                            ? Math.max(paperLoss - t.premium, 0)
-                            : 0;
+                          // Paper loss (Short Put: cash owed / Covered Call: forfeited upside) and net-of-premium loss
+                          const paperLoss = paperLossOf(t);
+                          const netLoss = netLossOf(t);
                           return (
                             <tr key={i} className="border-b border-zinc-800/40 hover:bg-zinc-900/60 transition-colors">
                               <td className="px-3 py-2 font-mono font-semibold whitespace-nowrap">
@@ -1808,17 +1817,13 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                           <td className="px-3 py-2.5" />
                           <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-rose-400">
                             {(() => {
-                              const totalPaper = atRisk.reduce((s, t) =>
-                                s + ((t.type === 'Short Put' && t.price < t.strike) ? (t.strike - t.price) * 100 * t.contracts : 0), 0);
+                              const totalPaper = atRisk.reduce((s, t) => s + paperLossOf(t), 0);
                               return totalPaper > 0 ? `-${fmtCurrencyWhole(totalPaper)}` : '$0';
                             })()}
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-rose-400">
                             {(() => {
-                              const totalNet = atRisk.reduce((s, t) => {
-                                const pl = (t.type === 'Short Put' && t.price < t.strike) ? (t.strike - t.price) * 100 * t.contracts : 0;
-                                return s + (pl > 0 ? Math.max(pl - t.premium, 0) : 0);
-                              }, 0);
+                              const totalNet = atRisk.reduce((s, t) => s + netLossOf(t), 0);
                               return totalNet > 0 ? `-${fmtCurrencyWhole(totalNet)}` : '$0';
                             })()}
                           </td>
@@ -1826,9 +1831,9 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                       </tfoot>
                     </table>
                     <div className="px-3 pt-3 pb-1 text-[10px] font-mono leading-relaxed text-zinc-500">
-                      <span className="text-zinc-400">Paper Loss</span> = mark-to-market intrinsic if assigned at the current price, <span className="text-zinc-400">(strike − price) × 100 × contracts</span>; it ignores premium already collected.
+                      <span className="text-zinc-400">Paper Loss</span> = mark-to-market intrinsic if assigned at the current price, ignoring premium already collected. Short puts: <span className="text-zinc-400">(strike − price) × 100 × contracts</span> (cash owed above market). Covered calls: <span className="text-zinc-400">(price − strike) × 100 × contracts</span> (forfeited upside above the strike).
                       <br />
-                      <span className="text-zinc-400">Loss (incl. premium)</span> = paper loss net of premium received, i.e. the true economic loss only once price falls below break-even. $0 means the premium cushion still covers the position.
+                      <span className="text-zinc-400">Loss (incl. premium)</span> = paper loss net of premium received, i.e. the true economic loss only once price moves past break-even. $0 means the premium cushion still covers the position.
                     </div>
                   </div>
                 );
