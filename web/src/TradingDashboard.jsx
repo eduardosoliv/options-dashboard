@@ -278,11 +278,18 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
       const kPrior = clampKey(priorMonthKey(key));
       const prem = t.premium || 0;
       let central, low, high;
+      const p = P[t.riskCategory] ?? 0.5;
+      const pl = P_LOW[t.riskCategory] ?? 0.3;
       if (t.type === 'Covered Call') {
-        central = prem * CAPTURE; low = prem * CAPTURE; high = prem;
+        // Direction flips vs a short put: a call is safe when price < strike and
+        // assigned (forfeiting upside) when price > strike. intrinsic = forfeited
+        // upside if assigned now; stressed = a further 5% rise against the call.
+        const intrinsic = Math.max(0, t.price - t.strike) * 100 * t.contracts;
+        const stressed = Math.max(0, t.price * 1.05 - t.strike) * 100 * t.contracts;
+        central = (p * prem + (1 - p) * (intrinsic > 0 ? prem - intrinsic : 0)) * CAPTURE;
+        low = (pl * prem + (1 - pl) * Math.min(prem - stressed, 0)) * CAPTURE;
+        high = prem;
       } else {
-        const p = P[t.riskCategory] ?? 0.5;
-        const pl = P_LOW[t.riskCategory] ?? 0.3;
         const intrinsic = Math.max(0, t.strike - t.price) * 100 * t.contracts;
         const stressed = Math.max(0, t.strike - t.price * 0.95) * 100 * t.contracts;
         central = (p * prem + (1 - p) * (intrinsic > 0 ? prem - intrinsic : 0)) * CAPTURE;
@@ -1075,7 +1082,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                 <span className="text-zinc-400">Forecast assumptions:</span> central line = probability-of-OTM weighted premium capture by buffer tier, adjusted for how positions are actually managed:
                 <span className="text-zinc-400"> (1)</span> capture rate haircut to <span className="text-zinc-300">85%</span> of max premium — positions are typically closed before the last dollar, though many safe ones are let expire;
                 <span className="text-zinc-400"> (2)</span> timing shift — <span className="text-zinc-300">half</span> of each position's expected capture is booked <span className="text-zinc-300">~4 weeks early</span> (prior month), reflecting closing sooner and peeling off higher-strike legs to de-risk.
-                Shaded band spans stressed → full capture. Covered calls assume full premium retention at 85% capture.
+                Shaded band spans stressed → full capture. Covered calls are treated symmetrically: OTM calls retain premium (85% capture), while ITM calls net the forfeited upside (price − strike) against premium, weighted by assignment probability.
               </div>
             </div>
 
