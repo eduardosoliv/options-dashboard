@@ -1873,6 +1873,20 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                   );
                 }
                 const dteColor = (d) => d <= 7 ? 'text-rose-400' : d <= 14 ? 'text-amber-400' : 'text-zinc-300';
+                // Paper loss = intrinsic cost if assigned at current price (see At Risk table).
+                //   Short Put (ITM, price < strike):  (strike − price) × 100 × contracts
+                //   Covered Call (ITM, price > strike): (price − strike) × 100 × contracts
+                const paperLossOf = (t) =>
+                  (t.type === 'Short Put' && t.price < t.strike)
+                    ? (t.strike - t.price) * 100 * t.contracts
+                    : (t.type === 'Covered Call' && t.price > t.strike)
+                      ? (t.price - t.strike) * 100 * t.contracts
+                      : 0;
+                // Net loss = paper loss minus premium collected, floored at 0 (only bites past break-even).
+                const netLossOf = (t) => {
+                  const pl = paperLossOf(t);
+                  return pl > 0 ? Math.max(pl - t.premium, 0) : 0;
+                };
                 return (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -1890,6 +1904,8 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                           <th className="px-3 py-3 text-right">Notional</th>
                           <th className="px-3 py-3 text-right">Est. Yield (Ann.)</th>
                           <th className="px-3 py-3 text-right">Premium</th>
+                          <th className="px-3 py-3 text-right">Paper Loss</th>
+                          <th className="px-3 py-3 text-right">Loss (incl. premium)</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1905,6 +1921,8 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                               ? ((t.price - breakEven) / t.price) * 100
                               : ((breakEven - t.price) / t.price) * 100
                             : null;
+                          const paperLoss = paperLossOf(t);
+                          const netLoss = netLossOf(t);
                           return (
                           <tr key={i} className="border-b border-zinc-800/40 hover:bg-zinc-900/60 transition-colors">
                             <td className="px-3 py-2 font-mono font-semibold whitespace-nowrap">
@@ -1939,6 +1957,16 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                             <td className="px-3 py-2 text-right font-mono num text-xs text-emerald-400">
                               {fmtCurrencyWhole(t.premium)}
                             </td>
+                            <td className="px-3 py-2 text-right font-mono num text-xs">
+                              <span className={paperLoss > 0 ? 'text-rose-400' : 'text-zinc-600'}>
+                                {paperLoss > 0 ? `-${fmtCurrencyWhole(paperLoss)}` : '$0'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono num text-xs">
+                              <span className={netLoss > 0 ? 'text-rose-400' : 'text-zinc-600'}>
+                                {netLoss > 0 ? `-${fmtCurrencyWhole(netLoss)}` : '$0'}
+                              </span>
+                            </td>
                           </tr>
                           );
                         })}
@@ -1955,9 +1983,26 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                           <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-emerald-400">
                             {fmtCurrencyWhole(soon.reduce((s, t) => s + (t.premium || 0), 0))}
                           </td>
+                          <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-rose-400">
+                            {(() => {
+                              const totalPaper = soon.reduce((s, t) => s + paperLossOf(t), 0);
+                              return totalPaper > 0 ? `-${fmtCurrencyWhole(totalPaper)}` : '$0';
+                            })()}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-rose-400">
+                            {(() => {
+                              const totalNet = soon.reduce((s, t) => s + netLossOf(t), 0);
+                              return totalNet > 0 ? `-${fmtCurrencyWhole(totalNet)}` : '$0';
+                            })()}
+                          </td>
                         </tr>
                       </tfoot>
                     </table>
+                    <div className="px-3 pt-3 pb-1 text-[10px] font-mono leading-relaxed text-zinc-500">
+                      <span className="text-zinc-400">Paper Loss</span> = mark-to-market intrinsic if assigned at the current price, ignoring premium already collected. Short puts: <span className="text-zinc-400">(strike − price) × 100 × contracts</span> (cash owed above market). Covered calls: <span className="text-zinc-400">(price − strike) × 100 × contracts</span> (forfeited upside above the strike).
+                      <br />
+                      <span className="text-zinc-400">Loss (incl. premium)</span> = paper loss net of premium received, i.e. the true economic loss only once price moves past break-even. $0 means the premium cushion still covers the position.
+                    </div>
                   </div>
                 );
               })()}
