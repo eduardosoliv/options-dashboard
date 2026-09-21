@@ -2377,10 +2377,12 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
         {/* $1M GOAL */}
         {activeView === 'goal' && (() => {
           const GOAL = 1_000_000;
-          const WIN_RATE = 0.88;
-          const AVG_WIN = 600;
-          const AVG_LOSS = 1400;
-          const EV_PER_TRADE = WIN_RATE * AVG_WIN - (1 - WIN_RATE) * AVG_LOSS; // $360
+          // Scenario A profile is derived from realized stats (not hardcoded) so
+          // "Stay as is" tracks the actual book instead of stale assumptions.
+          const WIN_RATE = stats.winRate / 100;
+          const AVG_WIN = stats.avgWin;
+          const AVG_LOSS = Math.abs(stats.avgLoss);
+          const EV_PER_TRADE = WIN_RATE * AVG_WIN - (1 - WIN_RATE) * AVG_LOSS;
           const realized = stats.totalGain;
           const remaining = Math.max(0, GOAL - realized);
           const pctGoal = Math.min(100, (realized / GOAL) * 100);
@@ -2398,7 +2400,19 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
           const monthsElapsed = startDate
             ? Math.max(1, (asOfDate.getFullYear() - startDate.getFullYear()) * 12 + (asOfDate.getMonth() - startDate.getMonth()) + 1)
             : 1;
-          const tradesPerMonth = stats.totalTrades / monthsElapsed;
+          // Current pace = trailing window of complete months. Excludes the
+          // slow "getting started" ramp and the current in-progress (partial)
+          // month, so it reflects how fast the book is actually running now.
+          const PACE_WINDOW_MONTHS = 6;
+          const completeMonthsElapsed = Math.max(1, monthsElapsed - 1); // drop current partial month
+          const paceWindow = Math.min(PACE_WINDOW_MONTHS, completeMonthsElapsed);
+          const currentMonthStart = new Date(asOfDate.getFullYear(), asOfDate.getMonth(), 1);
+          const paceWindowStart = new Date(asOfDate.getFullYear(), asOfDate.getMonth() - paceWindow, 1);
+          const tradesInWindow = TRADES.filter(t => {
+            const d = parseDate(t.acquired);
+            return d && d >= paceWindowStart && d < currentMonthStart;
+          }).length;
+          const tradesPerMonth = tradesInWindow > 0 ? tradesInWindow / paceWindow : stats.totalTrades / monthsElapsed;
           const monthsRemaining = tradesPerMonth > 0 ? Math.ceil(tradesNeededRemaining / tradesPerMonth) : 0;
           const totalMonthsForecast = monthsElapsed + monthsRemaining;
           const yearsRemaining = monthsRemaining / 12;
@@ -2407,11 +2421,11 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
           // Accelerated scenario: capital compounds (long book grows, monthly contributions,
           // enabling more CCs on more shares + margin-backed larger notional on puts).
           // Long-book appreciation does NOT count toward $1M — only options-generated P&L does.
-          const LONG_BOOK_START = 900_000;
-          const OPTIONS_CAPITAL_START = 945_000;  // current notional
-          const LONG_BOOK_GROWTH_ANNUAL = 0.07;
-          const MONTHLY_CONTRIBUTION = 18_000;
-          const TARGET_PACE = 25.0;   // trades/month max
+          const LONG_BOOK_START = 1_200_000;
+          const OPTIONS_CAPITAL_START = 950_000;  // current notional
+          const LONG_BOOK_GROWTH_ANNUAL = 0.08;
+          const MONTHLY_CONTRIBUTION = 20_000;
+          const TARGET_PACE = 30.0;   // trades/month max (between Aug 31 and Jul 35 actuals)
           const MAX_EV_TRADE = 900;    // EV/trade cap
           const BASE_CAPITAL = LONG_BOOK_START + OPTIONS_CAPITAL_START;
           // Year-by-year (actually month-by-month) simulation
@@ -2480,7 +2494,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                 <StatCard label="Realized P&L" value={fmtCurrency(realized)} sublabel={`${pctGoal.toFixed(2)}% of goal`} accent="amber" />
                 <StatCard label="Trades Closed" value={stats.closed.toLocaleString()} sublabel={`${stats.wins} won · ${stats.losses} lost`} accent="emerald" />
                 <StatCard label="Trades In Play" value={stats.inPlay.toLocaleString()} sublabel={`${stats.inPlayShortPuts} puts · ${stats.inPlayCoveredCalls} calls`} accent="sky" />
-                <StatCard label="Months Elapsed" value={monthsElapsed.toLocaleString()} sublabel={`${tradesPerMonth.toFixed(1)} trades/month pace`} accent="blue" />
+                <StatCard label="Months Elapsed" value={monthsElapsed.toLocaleString()} sublabel={`${tradesPerMonth.toFixed(1)}/mo current pace (last ${paceWindow} mo)`} accent="blue" />
               </div>
 
               {/* ==================== SCENARIO A ==================== */}
@@ -2496,9 +2510,9 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-3">Assumptions · Scenario A</div>
                 <ul className="text-xs text-zinc-400 font-mono space-y-1 leading-relaxed">
-                  <li>· Win rate: <span className="text-zinc-200">{(WIN_RATE * 100).toFixed(0)}%</span> · Average win: <span className="text-zinc-200">${AVG_WIN}</span> · Average loss: <span className="text-zinc-200">${AVG_LOSS.toLocaleString()}</span>.</li>
-                  <li>· Expected value per trade = 0.88 × $600 − 0.12 × $1,400 = <span className="text-zinc-200">${EV_PER_TRADE.toFixed(0)}</span> (held constant).</li>
-                  <li>· Trade pace: <span className="text-zinc-200">{stats.totalTrades} trades over {monthsElapsed} months = {tradesPerMonth.toFixed(1)} trades/month</span>.</li>
+                  <li>· Win rate: <span className="text-zinc-200">{(WIN_RATE * 100).toFixed(0)}%</span> · Average win: <span className="text-zinc-200">${Math.round(AVG_WIN).toLocaleString()}</span> · Average loss: <span className="text-zinc-200">${Math.round(AVG_LOSS).toLocaleString()}</span>.</li>
+                  <li>· Expected value per trade = {(WIN_RATE * 100).toFixed(0)}% × ${Math.round(AVG_WIN).toLocaleString()} − {((1 - WIN_RATE) * 100).toFixed(0)}% × ${Math.round(AVG_LOSS).toLocaleString()} = <span className="text-zinc-200">${EV_PER_TRADE.toFixed(0)}</span> (from realized stats, held constant).</li>
+                  <li>· Trade pace: <span className="text-zinc-200">{tradesInWindow} trades over the last {paceWindow} complete months = {tradesPerMonth.toFixed(1)} trades/month</span> (current pace — excludes the ramp-up period and the in-progress month).</li>
                   <li>· Assumes the current trade profile persists — same mix of tickers, durations, buffers, outcomes, and account size.</li>
                   <li>· Ignores taxes, capital drawdowns, and any strategy shift.</li>
                 </ul>
@@ -2562,10 +2576,10 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-3">Assumptions · Scenario B</div>
                 <ul className="text-xs text-zinc-400 font-mono space-y-1 leading-relaxed">
-                  <li>· <span className="text-zinc-300">Starting capital base:</span> <span className="text-zinc-200">$900k long portfolio</span> + <span className="text-zinc-200">~$945k options collateral</span> = <span className="text-zinc-200">~$1.85M</span>.</li>
-                  <li>· <span className="text-zinc-300">Long-book growth:</span> <span className="text-zinc-200">7%/yr</span> — compounds the capital base (enables more CCs on more shares + more margin-backed put notional). <span className="text-zinc-300">Does NOT credit toward the $1M goal.</span></li>
-                  <li>· <span className="text-zinc-300">Contributions:</span> <span className="text-zinc-200">$18k/month (~$216k/yr)</span>, split 50/50 into long book and options collateral.</li>
-                  <li>· <span className="text-zinc-300">Trade pace scales:</span> from today's <span className="text-zinc-200">{tradesPerMonth.toFixed(1)}/month</span> up to <span className="text-zinc-200">25/month</span> as capital grows (more CCs on growing share base + margin allows more concurrent puts).</li>
+                  <li>· <span className="text-zinc-300">Starting capital base:</span> <span className="text-zinc-200">${(LONG_BOOK_START / 1e6).toFixed(1)}M long portfolio</span> + <span className="text-zinc-200">~${Math.round(OPTIONS_CAPITAL_START / 1000)}k options collateral</span> = <span className="text-zinc-200">~${(BASE_CAPITAL / 1e6).toFixed(2)}M</span>.</li>
+                  <li>· <span className="text-zinc-300">Long-book growth:</span> <span className="text-zinc-200">{(LONG_BOOK_GROWTH_ANNUAL * 100).toFixed(0)}%/yr</span> — compounds the capital base (enables more CCs on more shares + more margin-backed put notional). <span className="text-zinc-300">Does NOT credit toward the $1M goal.</span></li>
+                  <li>· <span className="text-zinc-300">Contributions:</span> <span className="text-zinc-200">${Math.round(MONTHLY_CONTRIBUTION / 1000)}k/month (~${Math.round((MONTHLY_CONTRIBUTION * 12) / 1000)}k/yr)</span>, split 50/50 into long book and options collateral.</li>
+                  <li>· <span className="text-zinc-300">Trade pace scales:</span> from today's <span className="text-zinc-200">{tradesPerMonth.toFixed(1)}/month</span> up to <span className="text-zinc-200">{TARGET_PACE.toFixed(0)}/month</span> as capital grows (more CCs on growing share base + margin allows more concurrent puts).</li>
                   <li>· <span className="text-zinc-300">EV per trade scales:</span> proportional to capital-base ratio, capped at <span className="text-zinc-200">${MAX_EV_TRADE}</span> — bigger positions with margin, larger premium per contract.</li>
                   <li>· <span className="text-zinc-300">Only options-premium P&L counts toward $1M.</span> Long-book appreciation, contributions, and stock returns on assigned positions all excluded from the goal (they only grow the capital base that enables the options engine).</li>
                   <li>· Simulation result: reaches $1M in <span className="text-zinc-200">~{monthsRemainingAccel} months (~{yearsRemainingAccel.toFixed(1)} yrs)</span>, with capital base grown to <span className="text-zinc-200">~${capitalAtGoalM}M</span>, avg EV <span className="text-zinc-200">${avgEvAccel.toFixed(0)}/trade</span>, ending at <span className="text-zinc-200">${endEvAccel.toFixed(0)}/trade at {endPaceAccel.toFixed(1)}/mo</span>.</li>
