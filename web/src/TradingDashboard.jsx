@@ -1851,7 +1851,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
             <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl overflow-hidden">
               <div className="p-4 sm:p-6 pb-3">
                 <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Open Positions</div>
-                <div className="font-serif text-xl sm:text-2xl font-semibold">Expiring in &lt; 30 Days</div>
+                <div className="font-serif text-xl sm:text-2xl font-semibold">Expiring in &lt; 45 Days</div>
               </div>
               {(() => {
                 const now = updatedAt ? new Date(updatedAt) : new Date();
@@ -1863,12 +1863,12 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                 const soon = TRADES
                   .filter(t => t.status === 'IN PLAY')
                   .map(t => ({ ...t, dte: daysLeft(t) }))
-                  .filter(t => t.dte !== null && t.dte < 30)
+                  .filter(t => t.dte !== null && t.dte < 45)
                   .sort((a, b) => a.dte - b.dte);
                 if (soon.length === 0) {
                   return (
                     <div className="px-4 sm:px-6 pb-5 text-sm font-mono text-emerald-500/80">
-                      ✓ No open positions expiring within 30 days.
+                      ✓ No open positions expiring within 45 days.
                     </div>
                   );
                 }
