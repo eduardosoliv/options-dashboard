@@ -153,6 +153,9 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
     const premiumInPlay2028 = inPlay2028Trades.reduce((s,t) => s + (t.premium || 0), 0);
     const inPlay2028ShortPuts = inPlay2028Trades.filter(t => t.type === 'Short Put').length;
     const inPlay2028CoveredCalls = inPlay2028Trades.filter(t => t.type === 'Covered Call').length;
+    const riskInPlay2026 = inPlay2026Trades.reduce((s,t) => s + (t.riskLevel || 0), 0);
+    const riskInPlay2027 = inPlay2027Trades.reduce((s,t) => s + (t.riskLevel || 0), 0);
+    const riskInPlay2028 = inPlay2028Trades.reduce((s,t) => s + (t.riskLevel || 0), 0);
     return {
       totalTrades: TRADES.length,
       closed: closed.length,
@@ -178,6 +181,9 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
       premiumInPlay2028,
       inPlay2028ShortPuts,
       inPlay2028CoveredCalls,
+      riskInPlay2026,
+      riskInPlay2027,
+      riskInPlay2028,
     };
   }, []);
 
@@ -779,8 +785,8 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
 
             {/* Row 3: Open exposure */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <StatCard label="In Play" value={stats.inPlay} sublabel={`${fmtCurrency(stats.premiumInPlay)} premium · ${stats.inPlayShortPuts} short put${stats.inPlayShortPuts !== 1 ? 's' : ''} · ${stats.inPlayCoveredCalls} covered call${stats.inPlayCoveredCalls !== 1 ? 's' : ''}`} accent="sky" icon={Target} />
-              <StatCard label="Notional Risk" value={fmtCurrencyWhole(stats.riskInPlay)} sublabel="Max notional on open short puts" accent="rose" icon={AlertTriangle} />
+              <StatCard label="In Play" value={fmtCurrency(stats.premiumInPlay)} sublabel={`${stats.inPlay} positions · ${stats.inPlayShortPuts} short put${stats.inPlayShortPuts !== 1 ? 's' : ''} · ${stats.inPlayCoveredCalls} covered call${stats.inPlayCoveredCalls !== 1 ? 's' : ''}`} accent="sky" icon={Target} />
+              <StatCard label="Notional Risk" value={fmtCurrencyWhole(stats.riskInPlay)} sublabel={`2026/2027: ${fmtCurrencyCompact(stats.riskInPlay2026 + stats.riskInPlay2027)}, LEAPS: ${fmtCurrencyCompact(stats.riskInPlay2028)}`} accent="rose" icon={AlertTriangle} />
             </div>
 
             {/* Cumulative P&L sneak peek */}
