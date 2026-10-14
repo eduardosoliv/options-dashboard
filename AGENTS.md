@@ -100,6 +100,8 @@ Sheet-parsing rules that are easy to get wrong (`fetcher/normalize.py`):
   ITM, Deep ITM`.
 - Summary rows (blank `Acquired` or blank ticker) are skipped; the sample CSV
   yields exactly 148 trades.
+- Rows whose `Type` contains `call spread` (case-insensitive) are skipped —
+  call spreads are tracked in the sheet but deliberately not imported.
 - Money strips `$`/`,`; percent strips `%`; blanks become `None`.
 
 ## Invariants — don't break these

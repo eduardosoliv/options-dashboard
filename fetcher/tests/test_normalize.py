@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from normalize import normalize_csv_text
+from normalize import normalize_csv_text, normalize_rows
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_master.csv"
 
@@ -73,3 +73,16 @@ def test_negative_gainloss_parses():
     t = by(load(), "MSFT", 435.0, "Short Put")
     assert t["status"] == "ASSIGNED"
     assert t["gainLoss"] == -3201.67
+
+
+def test_call_spreads_are_skipped():
+    header = ["Acquired", "Expires", "Days", "Position", "#", "Column 1", "Type"]
+    rows = [
+        header,
+        ["Jan 2, 26", "Feb 20, 26", "10", "", "1", "AAPL", "Short Put"],
+        ["Jan 3, 26", "Feb 20, 26", "10", "", "1", "MSFT", "Call Spread"],
+        ["Jan 4, 26", "Feb 20, 26", "10", "", "1", "NVDA", "Bear call spread"],
+        ["Jan 5, 26", "Feb 20, 26", "10", "", "1", "AMZN", "Covered Call"],
+    ]
+    trades = normalize_rows(rows)
+    assert [t["ticker"] for t in trades] == ["AAPL", "AMZN"]

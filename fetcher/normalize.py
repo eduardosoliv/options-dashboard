@@ -102,10 +102,15 @@ def _is_data_row(row: list[str]) -> bool:
     return bool(_cell(row, COL["acquired"])) and bool(_cell(row, COL["ticker"]))
 
 
+def _is_call_spread(row: list[str]) -> bool:
+    # Call spreads live in the sheet but are deliberately not imported.
+    return "call spread" in _cell(row, COL["type"]).lower()
+
+
 def normalize_rows(rows: list[list[str]]) -> list[Trade]:
     if not rows:
         return []
-    return [normalize_row(r) for r in rows[1:] if _is_data_row(r)]
+    return [normalize_row(r) for r in rows[1:] if _is_data_row(r) and not _is_call_spread(r)]
 
 
 def normalize_csv_text(text: str) -> list[Trade]:
