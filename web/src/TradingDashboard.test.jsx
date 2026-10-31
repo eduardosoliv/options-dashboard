@@ -124,30 +124,24 @@ const TRADES = [
 ];
 
 describe('TradingDashboard', () => {
-  it('lays out Key Metrics as six cards in order', () => {
+  it('lays out Key Metrics as eight cards in order', () => {
     const { container } = render(<TradingDashboard tradesData={TRADES} />);
     const text = container.textContent;
     const keyMetrics = text.slice(text.indexOf('Key Metrics'), text.indexOf('Premium, Losses'));
     const labels = [
+      'Total Trades',
       'Win Rate',
       'Realized Gains',
       'Realized Losses',
       'Short Put Yield',
+      'Covered Call Yield',
       'In Play',
       'Notional Risk',
     ];
     const positions = labels.map((l) => keyMetrics.indexOf(l));
     expect(positions.every((p) => p >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-    // Total Trades moved into Win Rate's sublabel; it now only appears in Premium, Losses & Upside.
-    expect(keyMetrics).not.toContain('Total Trades');
-  });
-
-  it('folds trade counts into the Win Rate card', () => {
-    const { container } = render(<TradingDashboard tradesData={TRADES} />);
-    expect(container.textContent).toContain(
-      'Win Rate66.7%5 trades · 3 closed · 2 won · 1 lost · 2 in play',
-    );
+    expect(text).toContain('Win Rate66.7%2 wins of 3 trades');
   });
 
   it('mounts with mixed trade data and renders content without throwing', () => {
@@ -410,5 +404,52 @@ describe('TradingDashboard P&L Analytics put yields', () => {
     expect(container.textContent).toContain(
       'Annualized -18.79% capital-days · -8.87% capital-weighted · Total gain',
     );
+  });
+});
+
+describe('TradingDashboard covered call yield', () => {
+  // GOOGL 365C closed: +$301.32 = $309.34 premium − $8.02 buyback, $36.5k over 57 days.
+  const googl = { ...TRADES[3], premiumCollected: 309.34, closeCost: 8.02 };
+  // VEEV 250C called: −$703.66 incl. $1,021 upside given away, $317.34 premium, $25k over 60 days.
+  const veev = {
+    ...TRADES[3],
+    status: 'CALLED',
+    ticker: 'VEEV',
+    strike: 250,
+    acquired: 'Jul 20, 26',
+    closedOn: 'Sep 18, 26',
+    gainLoss: -703.66,
+    exitPrice: 260.21,
+    premiumCollected: 317.34,
+  };
+
+  it('shows net and premium-only capital-days yield on share value', () => {
+    const trades = [TRADES[0], TRADES[1], TRADES[2], googl, TRADES[4], veev];
+    const { container } = render(<TradingDashboard tradesData={trades} />);
+    // Σ capital-days = 36500 × 57 + 25000 × 60 = 3,580,500
+    // net (301.32 − 703.66) × 365 ÷ 3,580,500 = −4.10%; premium (309.34 + 317.34) → 6.39%
+    expect(container.textContent).toContain(
+      'Covered Call Yield-4.10%Annualized capital-days, net of buybacks · 6.39% premium-only · 2 closed calls',
+    );
+  });
+
+  it('shows a dash when only open or undated calls exist', () => {
+    // UBER 90C is in play; an undated closed call can't be annualized.
+    const undated = { ...TRADES[3], closedOn: null };
+    const { container } = render(
+      <TradingDashboard tradesData={[TRADES[0], TRADES[1], TRADES[2], undated]} />,
+    );
+    const text = container.textContent;
+    expect(text).toContain(
+      'Covered Call Yield—Annualized capital-days, net of buybacks · — premium-only · 0 closed calls',
+    );
+    expect(text).not.toContain('NaN');
+  });
+
+  it('computes premium-only over calls with a known premium and flags the rest', () => {
+    const trades = [...TRADES.slice(0, 3), TRADES[3], TRADES[4], veev];
+    const { container } = render(<TradingDashboard tradesData={trades} />);
+    // GOOGL has no premium formula: premium-only uses VEEV alone, 317.34 × 365 ÷ (25000 × 60) = 7.72%
+    expect(container.textContent).toContain('7.72% premium-only · 2 closed calls (1 w/o premium)');
   });
 });
