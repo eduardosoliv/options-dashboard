@@ -1725,13 +1725,87 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               </div>
             </div>
 
+            {/* Called-away covered calls (shares sold at strike) */}
+            {(() => {
+              const called = closedCalls.filter(t => t.status === 'CALLED');
+              const shares = (t) => t.contracts * 100;
+              const upside = (t) => (t.exitPrice == null ? null : Math.max(t.exitPrice - t.strike, 0) * shares(t));
+              const total = (f) => called.reduce((s, t) => s + (f(t) || 0), 0);
+              const signed = (v) => (v >= 0 ? '+' : '') + fmtCurrency(v);
+              return (
+                <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
+                  <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Covered Calls · Called Away</div>
+                  <div className="font-serif text-xl sm:text-2xl font-semibold mb-1">
+                    Called Away <span className="text-zinc-500 text-base font-mono font-normal">({called.length})</span>
+                  </div>
+                  <div className="text-xs font-mono text-zinc-500 mb-4">Shares sold at strike; upside given away = (price at call − strike) × shares, excl. premium.</div>
+                  {called.length === 0 ? (
+                    <div className="text-sm font-mono text-zinc-500">No covered calls have been called away.</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 border-b border-zinc-800">
+                            <th className="px-3 py-3 text-left">Ticker</th>
+                            <th className="px-3 py-3 text-right"># of Shares</th>
+                            <th className="px-3 py-3 text-right">Strike</th>
+                            <th className="px-3 py-3 text-right">Price at Call</th>
+                            <th className="px-3 py-3 text-left">Acquired</th>
+                            <th className="px-3 py-3 text-left">Called</th>
+                            <th className="px-3 py-3 text-right">Premium</th>
+                            <th className="px-3 py-3 text-right">Capital Received</th>
+                            <th className="px-3 py-3 text-right">Upside Given Away</th>
+                            <th className="px-3 py-3 text-right">Loss/Gain</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {called.map((t, i) => (
+                            <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
+                              <td className="px-3 py-2 font-mono text-xs font-semibold text-zinc-200">{t.ticker} {t.contracts}×</td>
+                              <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">{shares(t).toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">${t.strike}</td>
+                              <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">{t.exitPrice == null ? '—' : `$${t.exitPrice}`}</td>
+                              <td className="px-3 py-2 font-mono text-xs text-zinc-400">{t.acquired}</td>
+                              <td className="px-3 py-2 font-mono text-xs text-zinc-400">{t.closedOn}</td>
+                              <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">{fmtCurrency(t.premiumCollected)}</td>
+                              <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">{fmtCurrency(t.strike * shares(t))}</td>
+                              <td className="px-3 py-2 text-right font-mono num text-xs text-rose-400">{fmtCurrency(upside(t))}</td>
+                              <td className={`px-3 py-2 text-right font-mono num text-xs font-semibold ${t.gainLoss >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {signed(t.gainLoss)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="border-t border-zinc-700">
+                          <tr className="font-mono num text-xs font-semibold">
+                            <td colSpan={6} className="px-3 py-2.5 text-right text-[10px] uppercase tracking-wider text-zinc-500 font-normal">Total</td>
+                            <td className="px-3 py-2.5 text-right text-zinc-300">{fmtCurrency(total(t => t.premiumCollected))}</td>
+                            <td className="px-3 py-2.5 text-right text-zinc-300">{fmtCurrency(total(t => t.strike * shares(t)))}</td>
+                            <td className="px-3 py-2.5 text-right text-rose-400">{fmtCurrency(total(upside))}</td>
+                            <td className={`px-3 py-2.5 text-right ${total(t => t.gainLoss) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{signed(total(t => t.gainLoss))}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Closed covered calls */}
             <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
               <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Covered Calls · Closed</div>
               <div className="font-serif text-xl sm:text-2xl font-semibold mb-1">
                 Closed Covered Calls <span className="text-zinc-500 text-base font-mono font-normal">({closedCalls.length})</span>
               </div>
-              <div className="text-xs font-mono text-zinc-500 mb-4">All rolled or closed — no underlying shares sold.</div>
+              <div className="text-xs font-mono text-zinc-500 mb-4">
+                {(() => {
+                  const called = closedCalls.filter(t => t.status === 'CALLED').length;
+                  return called
+                    ? `${called} called away (shares sold at strike) · ${closedCalls.length - called} rolled, closed or expired.`
+                    : 'All rolled, closed or expired — no underlying shares sold.';
+                })()}
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -1739,6 +1813,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                       <th className="px-3 py-3 text-left">Ticker</th>
                       <th className="px-3 py-3 text-right"># of Shares</th>
                       <th className="px-3 py-3 text-right">Strike</th>
+                      <th className="px-3 py-3 text-left">Status</th>
                       <th className="px-3 py-3 text-left">Acquired</th>
                       <th className="px-3 py-3 text-left">Closed</th>
                       <th className="px-3 py-3 text-right">Loss/Gain</th>
@@ -1750,6 +1825,9 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                         <td className="px-3 py-2 font-mono text-xs font-semibold text-zinc-200">{t.ticker} {t.contracts}×</td>
                         <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">{(t.contracts * 100).toLocaleString()}</td>
                         <td className="px-3 py-2 text-right font-mono num text-xs text-zinc-300">${t.strike}</td>
+                        <td className="px-3 py-2 font-mono text-xs">
+                          <span className={t.status === 'CALLED' ? 'text-amber-400' : 'text-zinc-400'}>{t.status}</span>
+                        </td>
                         <td className="px-3 py-2 font-mono text-xs text-zinc-400">{t.acquired}</td>
                         <td className="px-3 py-2 font-mono text-xs text-zinc-400">{t.closedOn}</td>
                         <td className={`px-3 py-2 text-right font-mono num text-xs font-semibold ${t.gainLoss >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -1760,7 +1838,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                   </tbody>
                   <tfoot className="border-t border-zinc-700">
                     <tr>
-                      <td colSpan={5} className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                      <td colSpan={6} className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-wider text-zinc-500">
                         Total ({closedCalls.filter(t => t.gainLoss > 0).length}W / {closedCalls.filter(t => t.gainLoss < 0).length}L)
                       </td>
                       <td className={`px-3 py-2.5 text-right font-mono num text-xs font-semibold ${closedCalls.reduce((s, t) => s + t.gainLoss, 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>

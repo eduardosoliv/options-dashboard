@@ -291,3 +291,55 @@ describe('TradingDashboard P&L Reconciliation', () => {
     );
   });
 });
+
+describe('TradingDashboard P&L Analytics covered calls', () => {
+  it('shows each closed call’s status and counts called-away calls', () => {
+    const calledCall = {
+      ...TRADES[3],
+      status: 'CALLED',
+      ticker: 'VEEV',
+      strike: 250,
+      gainLoss: -703.66,
+    };
+    const { container } = render(<TradingDashboard tradesData={[...TRADES, calledCall]} />);
+    fireEvent.click(within(container).getByRole('button', { name: 'P&L Analytics' }));
+    const text = container.textContent;
+    expect(text).toContain('1 called away (shares sold at strike) · 1 rolled, closed or expired.');
+    // Row cells: ticker, shares, strike, status.
+    expect(text).toContain(['VEEV 1×', '100', '$250', 'CALLED'].join(''));
+    expect(text).toContain(['GOOGL 1×', '100', '$365', 'CLOSED'].join(''));
+    expect(text).not.toContain('no underlying shares sold');
+  });
+
+  it('lists called-away calls in their own table with totals', () => {
+    const veev = {
+      ...TRADES[3],
+      status: 'CALLED',
+      ticker: 'VEEV',
+      strike: 250,
+      closedOn: 'Sep 18, 26',
+    };
+    const called = [
+      { ...veev, gainLoss: -703.66, exitPrice: 260.21, premiumCollected: 317.34 },
+      { ...veev, strike: 260, gainLoss: 218.34, exitPrice: 260.21, premiumCollected: 239.34 },
+    ];
+    const { container } = render(<TradingDashboard tradesData={[...TRADES, ...called]} />);
+    fireEvent.click(within(container).getByRole('button', { name: 'P&L Analytics' }));
+    const text = container.textContent;
+    expect(text).toContain('Called Away (2)');
+    // Row: shares, strike, price at call, dates, premium, capital received, upside, gain/loss.
+    expect(text).toContain(
+      ['VEEV 1×', '100', '$250', '$260.21', 'Dec 16, 25', 'Sep 18, 26'].join(''),
+    );
+    expect(text).toContain(['$317.34', '$25,000.00', '$1,021.00', '-$703.66'].join(''));
+    // 260C called at 260.21: $21 of upside.
+    expect(text).toContain(['$239.34', '$26,000.00', '$21.00', '+$218.34'].join(''));
+    expect(text).toContain(['Total', '$556.68', '$51,000.00', '$1,042.00', '-$485.32'].join(''));
+  });
+
+  it('shows an empty state when no calls were called away', () => {
+    const { container } = render(<TradingDashboard tradesData={TRADES} />);
+    fireEvent.click(within(container).getByRole('button', { name: 'P&L Analytics' }));
+    expect(container.textContent).toContain('No covered calls have been called away.');
+  });
+});
