@@ -483,6 +483,33 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
     };
   }, [putYields]);
 
+  // Covered call annualized yield on closed calls (capital-days, share value ≈ strike × shares
+  // since the sheet doesn't keep the share price at open). Net includes buybacks/called upside,
+  // which are offset by share gains the dashboard doesn't track; premium-only is before them.
+  const callYieldSummary = useMemo(() => {
+    const rows = TRADES
+      .filter(t => isClosed(t) && t.type === 'Covered Call' && typeof t.gainLoss === 'number')
+      .map(t => {
+        const dAcq = parseDate(t.acquired);
+        const dClose = parseDate(t.closedOn);
+        const days = (dAcq && dClose) ? Math.max(1, Math.round((dClose - dAcq) / 86400000)) : null;
+        const premium = t.premiumCollected ?? (t.status === 'EXPIRED' ? t.gainLoss : null);
+        return { capitalDays: days ? t.strike * 100 * t.contracts * days : 0, gain: t.gainLoss, premium };
+      })
+      .filter(r => r.capitalDays > 0);
+    const yieldOf = (rs, f) => {
+      const cd = rs.reduce((s, r) => s + r.capitalDays, 0);
+      return cd > 0 ? (rs.reduce((s, r) => s + f(r), 0) / cd) * 365 * 100 : null;
+    };
+    const withPremium = rows.filter(r => r.premium != null);
+    return {
+      count: rows.length,
+      net: yieldOf(rows, r => r.gain),
+      premium: yieldOf(withPremium, r => r.premium),
+      premiumMissing: rows.length - withPremium.length,
+    };
+  }, []);
+
   // All covered calls that have closed (always rolled — no shares sold), worst-to-best by date
   const closedCalls = useMemo(() => {
     return TRADES
@@ -841,16 +868,26 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               </div>
             </div>
 
-            {/* Row 1: Closed-trade performance */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <StatCard label="Win Rate" value={`${stats.closed > 0 ? ((stats.wins / stats.closed) * 100).toFixed(1) : '0.0'}%`} sublabel={`${stats.totalTrades} trades · ${stats.closed} closed · ${stats.wins} won · ${stats.losses} lost · ${stats.inPlay} in play`} accent="emerald" icon={TrendingUp} />
+            {/* Row 1: Headline counts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <StatCard label="Total Trades" value={stats.totalTrades} sublabel={`${stats.closed} closed · ${stats.wins} won · ${stats.losses} lost · ${stats.inPlay} in play`} accent="amber" icon={Activity} />
+              <StatCard label="Win Rate" value={`${stats.closed > 0 ? ((stats.wins / stats.closed) * 100).toFixed(1) : '0.0'}%`} sublabel={`${stats.wins} wins of ${stats.closed} trades`} accent="emerald" icon={TrendingUp} />
+            </div>
+
+            {/* Row 2: Realized P&L */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatCard label="Realized Gains" value={fmtCurrency(TRADES.filter(isClosed).filter(isWin).reduce((s,t)=>s+t.gainLoss,0))} sublabel={`Avg ${fmtCurrency(stats.avgWin)} · Median ${fmtCurrency(stats.medianWin)} · Min ${fmtCurrency(stats.minWin)} · Max ${fmtCurrency(stats.maxWin)}`} accent="emerald" icon={TrendingUp} large />
               <StatCard label="Realized Losses" value={fmtCurrency(TRADES.filter(isClosed).filter(isLoss).reduce((s,t)=>s+t.gainLoss,0))} sublabel={`Avg ${fmtCurrency(stats.avgLoss)} · Median ${fmtCurrency(stats.medianLoss)} · Min ${fmtCurrency(stats.minLoss)} · Max ${fmtCurrency(stats.maxLoss)}`} accent="rose" icon={TrendingDown} large />
             </div>
 
-            {/* Row 2: Short put yield + open exposure */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Row 3: Annualized yield (capital-days) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatCard label="Short Put Yield" value={fmtPct(putYieldSummary.capitalDays)} sublabel={`Annualized capital-days · ${fmtPct(putYieldSummary.capitalWeighted)} capital-weighted · ${putYieldSummary.count} closed puts incl. assigned`} accent="emerald" icon={TrendingUp} />
+              <StatCard label="Covered Call Yield" value={fmtPct(callYieldSummary.net)} sublabel={`Annualized capital-days, net of buybacks · ${fmtPct(callYieldSummary.premium)} premium-only · ${callYieldSummary.count} closed calls${callYieldSummary.premiumMissing ? ` (${callYieldSummary.premiumMissing} w/o premium)` : ''}`} accent="sky" icon={DollarSign} />
+            </div>
+
+            {/* Row 4: Open exposure */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatCard label="In Play" value={fmtCurrency(stats.premiumInPlay)} sublabel={`${stats.inPlay} positions · ${stats.inPlayShortPuts} short put${stats.inPlayShortPuts !== 1 ? 's' : ''} · ${stats.inPlayCoveredCalls} covered call${stats.inPlayCoveredCalls !== 1 ? 's' : ''}`} accent="sky" icon={Target} />
               <StatCard label="Notional Risk" value={fmtCurrencyWhole(stats.riskInPlay)} sublabel={`2026/2027: ${fmtCurrencyCompact(stats.riskInPlay2026 + stats.riskInPlay2027)}, LEAPS: ${fmtCurrencyCompact(stats.riskInPlay2028)}`} accent="rose" icon={AlertTriangle} />
             </div>
