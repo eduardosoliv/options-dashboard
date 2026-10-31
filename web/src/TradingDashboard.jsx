@@ -468,6 +468,21 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
       .sort((a, b) => (b.annYield ?? -Infinity) - (a.annYield ?? -Infinity));
   }, []);
 
+  // Portfolio annualized yield on closed short puts, assigned puts (and their losses) included.
+  //  - capital-weighted: each trade's annualized yield weighted by its capital
+  //  - capital-days:     total gain ÷ Σ(capital × days held) × 365 — return per dollar per year committed
+  const putYieldSummary = useMemo(() => {
+    const ys = putYields.filter(y => y.annYield !== null);
+    const capital = ys.reduce((s, y) => s + y.capital, 0);
+    const capitalDays = ys.reduce((s, y) => s + y.capital * y.days, 0);
+    const gain = ys.reduce((s, y) => s + y.gainLoss, 0);
+    return {
+      count: ys.length,
+      capitalWeighted: capital > 0 ? ys.reduce((s, y) => s + y.annYield * y.capital, 0) / capital : null,
+      capitalDays: capitalDays > 0 ? (gain / capitalDays) * 365 * 100 : null,
+    };
+  }, [putYields]);
+
   // All covered calls that have closed (always rolled — no shares sold), worst-to-best by date
   const closedCalls = useMemo(() => {
     return TRADES
@@ -826,20 +841,16 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               </div>
             </div>
 
-            {/* Row 1: Headline counts */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <StatCard label="Total Trades" value={stats.totalTrades} sublabel={`${stats.closed} closed · ${stats.wins} won · ${stats.losses} lost · ${stats.inPlay} in play`} accent="amber" icon={Activity} />
-              <StatCard label="Win Rate" value={`${stats.closed > 0 ? ((stats.wins / stats.closed) * 100).toFixed(1) : '0.0'}%`} sublabel={`${stats.wins} wins of ${stats.closed} trades`} accent="emerald" icon={TrendingUp} />
-            </div>
-
-            {/* Row 2: Realized P&L */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Row 1: Closed-trade performance */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatCard label="Win Rate" value={`${stats.closed > 0 ? ((stats.wins / stats.closed) * 100).toFixed(1) : '0.0'}%`} sublabel={`${stats.totalTrades} trades · ${stats.closed} closed · ${stats.wins} won · ${stats.losses} lost · ${stats.inPlay} in play`} accent="emerald" icon={TrendingUp} />
               <StatCard label="Realized Gains" value={fmtCurrency(TRADES.filter(isClosed).filter(isWin).reduce((s,t)=>s+t.gainLoss,0))} sublabel={`Avg ${fmtCurrency(stats.avgWin)} · Median ${fmtCurrency(stats.medianWin)} · Min ${fmtCurrency(stats.minWin)} · Max ${fmtCurrency(stats.maxWin)}`} accent="emerald" icon={TrendingUp} large />
               <StatCard label="Realized Losses" value={fmtCurrency(TRADES.filter(isClosed).filter(isLoss).reduce((s,t)=>s+t.gainLoss,0))} sublabel={`Avg ${fmtCurrency(stats.avgLoss)} · Median ${fmtCurrency(stats.medianLoss)} · Min ${fmtCurrency(stats.minLoss)} · Max ${fmtCurrency(stats.maxLoss)}`} accent="rose" icon={TrendingDown} large />
             </div>
 
-            {/* Row 3: Open exposure */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Row 2: Short put yield + open exposure */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatCard label="Short Put Yield" value={fmtPct(putYieldSummary.capitalDays)} sublabel={`Annualized capital-days · ${fmtPct(putYieldSummary.capitalWeighted)} capital-weighted · ${putYieldSummary.count} closed puts incl. assigned`} accent="emerald" icon={TrendingUp} />
               <StatCard label="In Play" value={fmtCurrency(stats.premiumInPlay)} sublabel={`${stats.inPlay} positions · ${stats.inPlayShortPuts} short put${stats.inPlayShortPuts !== 1 ? 's' : ''} · ${stats.inPlayCoveredCalls} covered call${stats.inPlayCoveredCalls !== 1 ? 's' : ''}`} accent="sky" icon={Target} />
               <StatCard label="Notional Risk" value={fmtCurrencyWhole(stats.riskInPlay)} sublabel={`2026/2027: ${fmtCurrencyCompact(stats.riskInPlay2026 + stats.riskInPlay2027)}, LEAPS: ${fmtCurrencyCompact(stats.riskInPlay2028)}`} accent="rose" icon={AlertTriangle} />
             </div>
@@ -884,11 +895,11 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               const signed = (v) => `${v > 0 ? '+' : ''}${fmtCurrency(v)}`;
               const pnlRows = [
                 { label: 'Premium Collected', note: 'card above', amount: stats.premiumCollected },
-                { label: 'In-play premium', note: 'not realized yet', amount: -stats.premiumInPlay },
+                { label: 'In-play premium', note: 'not realized yet', amount: -stats.premiumInPlay, minus: true },
                 { label: 'Premium on finished trades', amount: stats.premiumFinished, subtotal: true },
-                { label: 'Cash Used to Close', note: 'buybacks', amount: -stats.closingCost },
-                { label: 'Puts Paper Loss (excl. premium)', note: 'assigned at below strike', amount: stats.assignedPaperLoss },
-                { label: 'Upside Given Away', note: 'calls called away', amount: -stats.calledUpside },
+                { label: 'Cash Used to Close', note: 'buybacks', amount: -stats.closingCost, minus: true },
+                { label: 'Puts Paper Loss (excl. premium)', note: 'assigned at below strike', amount: stats.assignedPaperLoss, minus: true },
+                { label: 'Upside Given Away', note: 'calls called away', amount: -stats.calledUpside, minus: true },
               ];
               const computed = stats.premiumFinished - stats.closingCost + stats.assignedPaperLoss - stats.calledUpside;
               const gap = stats.totalGain - computed;
@@ -897,8 +908,8 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               }
               const cashRows = [
                 { label: 'Premium Collected', note: 'incl. in play', amount: stats.premiumCollected },
-                { label: 'Cash Used to Close', note: 'buybacks', amount: -stats.closingCost },
-                { label: 'Capital Deployed', note: 'shares bought on assigned puts', amount: -stats.assignedCapital },
+                { label: 'Cash Used to Close', note: 'buybacks', amount: -stats.closingCost, minus: true },
+                { label: 'Capital Deployed', note: 'shares bought on assigned puts', amount: -stats.assignedCapital, minus: true },
                 { label: 'Capital Received', note: 'shares sold on called calls', amount: stats.calledCapital },
               ];
               const netCash = stats.premiumCollected - stats.closingCost - stats.assignedCapital + stats.calledCapital;
@@ -920,7 +931,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                         {rows.map((r) => (
                           <tr key={r.label} className={`border-b border-zinc-800/50 ${r.subtotal ? 'bg-zinc-900/60' : ''}`}>
                             <td className={`px-4 py-2.5 ${r.warn ? 'text-amber-400' : r.subtotal ? 'text-zinc-200 font-semibold' : 'text-zinc-300'}`}>
-                              {r.warn ? '± ' : r.subtotal ? '= ' : r.amount < 0 ? '− ' : '+ '}{r.label}
+                              {r.warn ? '± ' : r.subtotal ? '= ' : r.minus ? '− ' : '+ '}{r.label}
                               {r.note && <span className="text-zinc-500 text-xs"> · {r.note}</span>}
                             </td>
                             <td className={`px-4 py-2.5 text-right num whitespace-nowrap ${r.warn ? 'text-amber-400' : r.amount < 0 ? 'text-rose-400' : 'text-zinc-200'} ${r.subtotal ? 'font-semibold' : ''}`}>
@@ -1664,7 +1675,6 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                   <span className={`inline-flex items-center gap-1 ${right ? 'flex-row-reverse' : ''}`}>{label}{yieldSortKey === k && <span className="text-[8px]">{yieldSortDir === 'asc' ? '▲' : '▼'}</span>}</span>
                 </th>
               );
-              const avgAnn = putYields.filter(y => y.annYield !== null).reduce((s, y, _, arr) => s + y.annYield / arr.length, 0);
               const totGain = putYields.reduce((s, y) => s + y.gainLoss, 0);
               return (
                 <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
@@ -1705,7 +1715,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                       </tbody>
                       <tfoot className="border-t border-zinc-700">
                         <tr>
-                          <td colSpan={5} className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-wider text-zinc-500">Avg annualized {avgAnn.toFixed(1)}% · Total gain</td>
+                          <td colSpan={5} className="px-3 py-2.5 text-right text-[10px] font-mono uppercase tracking-wider text-zinc-500">Annualized {fmtPct(putYieldSummary.capitalDays)} capital-days · {fmtPct(putYieldSummary.capitalWeighted)} capital-weighted · Total gain</td>
                           <td className="px-3 py-2.5 text-right font-mono num text-xs font-semibold text-emerald-400">+{fmtCurrency(totGain)}</td>
                           <td colSpan={3}></td>
                         </tr>

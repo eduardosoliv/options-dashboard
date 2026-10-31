@@ -124,6 +124,32 @@ const TRADES = [
 ];
 
 describe('TradingDashboard', () => {
+  it('lays out Key Metrics as six cards in order', () => {
+    const { container } = render(<TradingDashboard tradesData={TRADES} />);
+    const text = container.textContent;
+    const keyMetrics = text.slice(text.indexOf('Key Metrics'), text.indexOf('Premium, Losses'));
+    const labels = [
+      'Win Rate',
+      'Realized Gains',
+      'Realized Losses',
+      'Short Put Yield',
+      'In Play',
+      'Notional Risk',
+    ];
+    const positions = labels.map((l) => keyMetrics.indexOf(l));
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    // Total Trades moved into Win Rate's sublabel; it now only appears in Premium, Losses & Upside.
+    expect(keyMetrics).not.toContain('Total Trades');
+  });
+
+  it('folds trade counts into the Win Rate card', () => {
+    const { container } = render(<TradingDashboard tradesData={TRADES} />);
+    expect(container.textContent).toContain(
+      'Win Rate66.7%5 trades · 3 closed · 2 won · 1 lost · 2 in play',
+    );
+  });
+
   it('mounts with mixed trade data and renders content without throwing', () => {
     const { container } = render(<TradingDashboard tradesData={TRADES} />);
     // Stable UI chrome renders...
@@ -281,6 +307,8 @@ describe('TradingDashboard P&L Reconciliation', () => {
     expect(text).toContain('Capital Deployed$43,500');
     // finished premium 1028.66 − 143.38 − 0 − 1021 = −135.72; realized −3337.39 ⇒ gap −3201.67
     expect(text).toContain('± Unreconciled · closed trades without a premium formula-$3,201.67');
+    // A subtracting row keeps its minus sign even when its amount is $0.
+    expect(text).toContain('− Puts Paper Loss (excl. premium) · assigned at below strike$0.00');
   });
 
   it('flags the gap left by closed trades without a premium formula', () => {
@@ -341,5 +369,46 @@ describe('TradingDashboard P&L Analytics covered calls', () => {
     const { container } = render(<TradingDashboard tradesData={TRADES} />);
     fireEvent.click(within(container).getByRole('button', { name: 'P&L Analytics' }));
     expect(container.textContent).toContain('No covered calls have been called away.');
+  });
+});
+
+describe('TradingDashboard short put yield', () => {
+  // JPM +$266.62 on $56k over 28 days; AMZN assigned −$3,201.67 on $43.5k over 95 days.
+  it('shows capital-days and capital-weighted yields, assigned puts included', () => {
+    const { container } = render(<TradingDashboard tradesData={TRADES} />);
+    const text = container.textContent;
+    // Capital-days: (266.62 − 3201.67) ÷ (56000 × 28 + 43500 × 95) × 365 = −18.79%
+    // Capital-weighted: (6.21% × 56000 − 28.28% × 43500) ÷ 99500 = −8.87%
+    expect(text).toContain(
+      'Short Put Yield-18.79%Annualized capital-days · -8.87% capital-weighted · 2 closed puts incl. assigned',
+    );
+    expect(text).not.toContain('In Play8');
+  });
+
+  it('skips closed puts with a missing date instead of corrupting the yield', () => {
+    // An undated closed put can't be annualized; the result must equal the fixture-only yield.
+    const undated = { ...TRADES[2], ticker: 'NFLX', closedOn: null, gainLoss: 99999 };
+    const { container } = render(<TradingDashboard tradesData={[...TRADES, undated]} />);
+    const text = container.textContent;
+    expect(text).toContain('Short Put Yield-18.79%');
+    expect(text).toContain('2 closed puts incl. assigned');
+    expect(text).not.toContain('NaN');
+  });
+
+  it('shows a dash when there are no closed puts', () => {
+    const { container } = render(<TradingDashboard tradesData={[TRADES[1]]} />);
+    expect(container.textContent).toContain('Short Put Yield—');
+  });
+});
+
+describe('TradingDashboard P&L Analytics put yields', () => {
+  it('shows the same capital-days and capital-weighted yields in the footer', () => {
+    const { container } = render(<TradingDashboard tradesData={TRADES} />);
+    fireEvent.click(within(container).getByRole('button', { name: 'P&L Analytics' }));
+    // JPM +6.21% on $56k (28 days), AMZN −28.28% on $43.5k (95 days):
+    // Same figures as the Key Metrics cards (the simple mean would be −11.04%).
+    expect(container.textContent).toContain(
+      'Annualized -18.79% capital-days · -8.87% capital-weighted · Total gain',
+    );
   });
 });
