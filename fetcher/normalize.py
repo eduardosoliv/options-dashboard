@@ -70,11 +70,42 @@ def _status(days_cell: str) -> str | None:
     try:
         float(s)  # a number of days remaining -> position is open
     except ValueError:
-        return s  # CLOSED / ASSIGNED / EXPIRED
+        return s  # CLOSED / ASSIGNED / EXPIRED / CALLED
     return "IN PLAY"
 
 
-def normalize_row(row: list[str]) -> Trade:
+# ASSIGNED / CALLED rows compute Gain/Loss with a formula that embeds the stock
+# price at assignment/call and the premium collected, e.g.
+#   put:  =-(($E12*100)*($I12-397.85))+(513.33)
+#   call: =-(($E128*100)*(260.21-$I128))+(317.34)
+_EXIT_FORMULA = re.compile(
+    r"^=\s*-\s*\(\s*\(\s*\$?E\$?\d+\s*\*\s*100\s*\)\s*\*\s*\(\s*"
+    r"(?:\$?I\$?\d+\s*-\s*(?P<put>[\d.]+)|(?P<call>[\d.]+)\s*-\s*\$?I\$?\d+)"
+    r"\s*\)\s*\)\s*\+\s*\(\s*(?P<premium>[\d.]+)\s*\)\s*$",
+)
+# CLOSED rows may write Gain/Loss as premium minus buyback cost: =(317.34)-(120)
+_CLOSE_FORMULA = re.compile(
+    r"^=\s*\(?\s*(?P<premium>[\d.]+)\s*\)?\s*-\s*\(?\s*(?P<cost>[\d.]+)\s*\)?\s*$",
+)
+
+
+def _formula_terms(formula: object) -> tuple[float | None, float | None, float | None]:
+    """Return (exit price, premium collected, closing cost) from a Gain/Loss formula."""
+    # The FORMULA render returns plain numbers (not strings) for non-formula cells.
+    if not isinstance(formula, str):
+        return None, None, None
+    if m := _EXIT_FORMULA.match(formula.strip()):
+        return float(m["put"] or m["call"]), float(m["premium"]), None
+    if m := _CLOSE_FORMULA.match(formula.strip()):
+        return None, float(m["premium"]), float(m["cost"])
+    return None, None, None
+
+
+def normalize_row(row: list[str], formula_row: list[object] | None = None) -> Trade:
+    i = COL["gain_loss"]
+    exit_price, premium_collected, close_cost = _formula_terms(
+        formula_row[i] if formula_row and i < len(formula_row) else None
+    )
     return {
         "acquired": _cell(row, COL["acquired"]) or None,
         "expires": _cell(row, COL["expires"]) or None,
@@ -94,6 +125,9 @@ def normalize_row(row: list[str]) -> Trade:
         "gainLoss": _money(_cell(row, COL["gain_loss"])),
         "capital": _money(_cell(row, COL["capital"])),
         "realYield": _pct(_cell(row, COL["real_yield"])),
+        "exitPrice": exit_price,
+        "premiumCollected": premium_collected,
+        "closeCost": close_cost,
     }
 
 
@@ -107,10 +141,18 @@ def _is_call_spread(row: list[str]) -> bool:
     return "call spread" in _cell(row, COL["type"]).lower()
 
 
-def normalize_rows(rows: list[list[str]]) -> list[Trade]:
+def normalize_rows(
+    rows: list[list[str]], formula_rows: list[list[object]] | None = None
+) -> list[Trade]:
+    """Normalize rendered rows; `formula_rows` is the same range read with formulas, row-aligned."""
     if not rows:
         return []
-    return [normalize_row(r) for r in rows[1:] if _is_data_row(r) and not _is_call_spread(r)]
+    formulas = formula_rows or []
+    return [
+        normalize_row(r, formulas[i] if i < len(formulas) else None)
+        for i, r in enumerate(rows)
+        if i > 0 and _is_data_row(r) and not _is_call_spread(r)
+    ]
 
 
 def normalize_csv_text(text: str) -> list[Trade]:

@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from normalize import normalize_csv_text, normalize_rows
+import pytest
+
+from normalize import _formula_terms, normalize_csv_text, normalize_rows
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_master.csv"
 
@@ -86,3 +88,79 @@ def test_call_spreads_are_skipped():
     ]
     trades = normalize_rows(rows)
     assert [t["ticker"] for t in trades] == ["AAPL", "AMZN"]
+
+
+def test_exit_terms_parsed_from_gainloss_formula():
+    # Rendered values and the same range read as formulas (numbers come back unquoted).
+    rows = [
+        ["Acquired"],
+        ["Nov 17, 25", "Feb 20, 26", "ASSIGNED", "", "1", "MSFT", "Short Put", "", "$435.0"]
+        + [""] * 7
+        + ["-$3,201.67"],
+        ["Jul 20, 26", "Sep 18, 26", "CALLED", "", "1", "VEEV", "Covered Call", "", "$250.0"]
+        + [""] * 7
+        + ["-$703.66"],
+        ["Dec 16, 25", "Jan 16, 26", "CLOSED", "", "2", "JPM", "Short Put", "", "$280.0"]
+        + [""] * 7
+        + ["$266.62"],
+        ["Jan 5, 26", "Feb 6, 26", "CLOSED", "", "1", "GOOGL", "Short Put", "", "$295.0"]
+        + [""] * 7
+        + ["$197.34"],
+    ]
+    formulas = [
+        ["Acquired"],
+        [""] * 16 + ["=-(($E12*100)*($I12-397.85))+(513.33)"],
+        [""] * 16 + ["=-(($E128*100)*(260.21-$I128))+(317.34)"],
+        [""] * 16 + [266.62],
+        [""] * 16 + ["=(317.34)-(120)"],
+    ]
+    put, call, closed, closed_formula = normalize_rows(rows, formulas)
+    assert (put["exitPrice"], put["premiumCollected"]) == (397.85, 513.33)
+    assert (call["exitPrice"], call["premiumCollected"]) == (260.21, 317.34)
+    assert call["status"] == "CALLED"
+    assert (closed["exitPrice"], closed["premiumCollected"], closed["closeCost"]) == (
+        None,
+        None,
+        None,
+    )
+    assert closed_formula["exitPrice"] is None
+    assert (closed_formula["premiumCollected"], closed_formula["closeCost"]) == (317.34, 120.0)
+    assert put["closeCost"] is None
+
+
+def test_exit_terms_absent_without_formulas():
+    t = by(load(), "MSFT", 435.0, "Short Put")
+    assert t["exitPrice"] is None
+    assert t["premiumCollected"] is None
+
+
+@pytest.mark.parametrize(
+    ("formula", "expected"),
+    [
+        # ASSIGNED put / CALLED call: (exit price, premium, None)
+        ("=-(($E12*100)*($I12-397.85))+(513.33)", (397.85, 513.33, None)),
+        ("=-(($E128*100)*(260.21-$I128))+(317.34)", (260.21, 317.34, None)),
+        ("=-(($E$12*100)*($I$12-397.85))+(513.33)", (397.85, 513.33, None)),
+        ("= - ( ( E12 * 100 ) * ( I12 - 397.85 ) ) + ( 513.33 )", (397.85, 513.33, None)),
+        # CLOSED / EXPIRED premium minus buyback: (None, premium, cost)
+        ("=(278.67)-(12.05)", (None, 278.67, 12.05)),
+        ("=278.67-12.05", (None, 278.67, 12.05)),
+        ("=(238.65)-(0)", (None, 238.65, 0.0)),
+        # Anything else is ignored rather than guessed at.
+        ("=SUM(Q3:Q225)", (None, None, None)),
+        ("=(278.67)+(12.05)", (None, None, None)),
+        ("=-(($E12*100)*($I12-397.85))", (None, None, None)),
+        (266.62, (None, None, None)),
+        ("", (None, None, None)),
+        (None, (None, None, None)),
+    ],
+)
+def test_formula_terms(formula, expected):
+    assert _formula_terms(formula) == expected
+
+
+def test_formula_rows_shorter_than_rendered_rows():
+    # A missing/short formula row must not break normalization.
+    rows = [["Acquired"], ["Jan 2, 26", "Feb 20, 26", "CLOSED", "", "1", "AAPL", "Short Put"]]
+    (t,) = normalize_rows(rows, [["Acquired"]])
+    assert (t["exitPrice"], t["premiumCollected"], t["closeCost"]) == (None, None, None)
