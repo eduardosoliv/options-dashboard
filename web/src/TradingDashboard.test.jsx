@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from '@testing-library/react';
+import { fireEvent, render, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import TradingDashboard from './TradingDashboard.jsx';
 
@@ -151,6 +151,14 @@ describe('TradingDashboard', () => {
     expect(text).toContain('6 closed · 3 won · 3 lost · 2 in play');
     expect(text).toContain('Avg $522.65 · Median $301.32 · Min $266.62 · Max $1,000.00');
     expect(text).toContain('Avg -$1,166.67 · Median -$200.00 · Min -$98.33 · Max -$3,201.67');
+  });
+
+  it('splits the In Play Analytics tab into sections', () => {
+    const { container } = render(<TradingDashboard tradesData={TRADES} />);
+    fireEvent.click(within(container).getByRole('button', { name: /In Play Analytics/ }));
+    for (const section of ['At Risk', 'Expiring Soon', 'Positions & Premium', 'Notional Risk']) {
+      expect(container.textContent).toContain(section);
+    }
   });
 
   it('renders an empty state without crashing on no trades', () => {

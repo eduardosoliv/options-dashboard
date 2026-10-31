@@ -1695,6 +1695,15 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
         {/* IN PLAY ANALYTICS */}
         {activeView === 'inplay' && (
           <div className="space-y-6">
+            {/* ==================== AT RISK ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">At Risk</h2>
+                <span className="text-xs font-mono text-zinc-500">— buffer levels and positions near or past their strike</span>
+              </div>
+            </div>
+
             {/* Risk by category in play */}
             <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
               <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Risk Distribution</div>
@@ -1892,6 +1901,15 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               })()}
             </div>
 
+            {/* ==================== EXPIRING SOON ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Expiring Soon</h2>
+                <span className="text-xs font-mono text-zinc-500">— open positions expiring within 60 days</span>
+              </div>
+            </div>
+
             {/* Open positions expiring soon — two windows: < 30 days, then 30–60 days */}
             {(() => {
               const now = updatedAt ? new Date(updatedAt) : new Date();
@@ -2061,6 +2079,15 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               );
             })()}
 
+            {/* ==================== POSITIONS & PREMIUM ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Positions <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Premium</h2>
+                <span className="text-xs font-mono text-zinc-500">— open positions and premium by ticker and expiration</span>
+              </div>
+            </div>
+
             {/* Open positions by ticker */}
             <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
               <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Open Positions</div>
@@ -2172,6 +2199,15 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+
+            {/* ==================== NOTIONAL RISK ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Notional Risk</h2>
+                <span className="text-xs font-mono text-zinc-500">— capital at risk by expiration and ticker</span>
+              </div>
             </div>
 
             {/* Notional risk by expiration date */}
