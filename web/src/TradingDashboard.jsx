@@ -126,6 +126,12 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
   const callsTrades = useMemo(() => getFilteredTrades('Covered Call'), [statusFilter, outcomeFilter, bufferLevels, search, sortKey, sortDir]);
 
   // Aggregate stats
+  const median = (xs) => {
+    if (!xs.length) return 0;
+    const v = [...xs].sort((a, b) => a - b);
+    const m = Math.floor(v.length / 2);
+    return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+  };
   const stats = useMemo(() => {
     const closed = TRADES.filter(isClosed);
     const inPlay = TRADES.filter(t => t.status === 'IN PLAY');
@@ -166,6 +172,12 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
       totalGain,
       avgWin: wins.length ? totalWinAmount / wins.length : 0,
       avgLoss: losses.length ? totalLossAmount / losses.length : 0,
+      medianWin: median(wins.map(t => t.gainLoss)),
+      medianLoss: median(losses.map(t => t.gainLoss)),
+      minWin: wins.length ? Math.min(...wins.map(t => t.gainLoss)) : 0,
+      maxWin: wins.length ? Math.max(...wins.map(t => t.gainLoss)) : 0,
+      minLoss: losses.length ? Math.max(...losses.map(t => t.gainLoss)) : 0,
+      maxLoss: losses.length ? Math.min(...losses.map(t => t.gainLoss)) : 0,
       premiumInPlay,
       riskInPlay,
       inPlayShortPuts,
@@ -779,8 +791,8 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
 
             {/* Row 2: Realized P&L */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <StatCard label="Realized Gains" value={fmtCurrency(TRADES.filter(isClosed).filter(isWin).reduce((s,t)=>s+t.gainLoss,0))} sublabel={`Avg win ${fmtCurrency(stats.avgWin)}`} accent="emerald" icon={TrendingUp} large />
-              <StatCard label="Realized Losses" value={fmtCurrency(TRADES.filter(isClosed).filter(isLoss).reduce((s,t)=>s+t.gainLoss,0))} sublabel={`Avg loss ${fmtCurrency(stats.avgLoss)}`} accent="rose" icon={TrendingDown} large />
+              <StatCard label="Realized Gains" value={fmtCurrency(TRADES.filter(isClosed).filter(isWin).reduce((s,t)=>s+t.gainLoss,0))} sublabel={`Avg ${fmtCurrency(stats.avgWin)} · Median ${fmtCurrency(stats.medianWin)} · Min ${fmtCurrency(stats.minWin)} · Max ${fmtCurrency(stats.maxWin)}`} accent="emerald" icon={TrendingUp} large />
+              <StatCard label="Realized Losses" value={fmtCurrency(TRADES.filter(isClosed).filter(isLoss).reduce((s,t)=>s+t.gainLoss,0))} sublabel={`Avg ${fmtCurrency(stats.avgLoss)} · Median ${fmtCurrency(stats.medianLoss)} · Min ${fmtCurrency(stats.minLoss)} · Max ${fmtCurrency(stats.maxLoss)}`} accent="rose" icon={TrendingDown} large />
             </div>
 
             {/* Row 3: Open exposure */}

@@ -133,6 +133,22 @@ describe('TradingDashboard', () => {
     expect(container.textContent).toContain('GOOGL');
   });
 
+  it('shows trade counts and gain/loss distribution on the overview cards', () => {
+    const closedTrade = (ticker, gainLoss) => ({ ...TRADES[2], ticker, gainLoss });
+    // Wins: 266.62, 301.32, 1000 · Losses: -3201.67, -98.33, -200
+    const trades = [
+      ...TRADES,
+      closedTrade('AAPL', 1000),
+      closedTrade('NVDA', -98.33),
+      closedTrade('META', -200),
+    ];
+    const { container } = render(<TradingDashboard tradesData={trades} />);
+    const text = container.textContent;
+    expect(text).toContain('6 closed · 3 won · 3 lost · 2 in play');
+    expect(text).toContain('Avg $522.65 · Median $301.32 · Min $266.62 · Max $1,000.00');
+    expect(text).toContain('Avg -$1,166.67 · Median -$200.00 · Min -$98.33 · Max -$3,201.67');
+  });
+
   it('renders an empty state without crashing on no trades', () => {
     const { container } = render(<TradingDashboard tradesData={[]} />);
     expect(container.textContent.length).toBeGreaterThan(0);
