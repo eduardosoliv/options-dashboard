@@ -162,7 +162,40 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
     const riskInPlay2026 = inPlay2026Trades.reduce((s,t) => s + (t.riskLevel || 0), 0);
     const riskInPlay2027 = inPlay2027Trades.reduce((s,t) => s + (t.riskLevel || 0), 0);
     const riskInPlay2028 = inPlay2028Trades.reduce((s,t) => s + (t.riskLevel || 0), 0);
+    // Exits: exitPrice / premiumCollected / closeCost are parsed from the sheet's Gain/Loss formula.
+    const shares = (t) => (t.contracts || 0) * 100;
+    const sum = (xs, f) => xs.reduce((s,t) => s + f(t), 0);
+    const tickers = (xs) => new Set(xs.map(t => t.ticker)).size;
+    const assignedPuts = TRADES.filter(t => t.status === 'ASSIGNED' && t.type === 'Short Put');
+    const calledCalls = TRADES.filter(t => t.status === 'CALLED' && t.type === 'Covered Call');
+    const closedOnly = TRADES.filter(t => t.status === 'CLOSED');
+    const closedKnown = closedOnly.filter(t => t.premiumCollected != null);
+    // Premium: in play (col H) + every finished trade's formula premium; an EXPIRED row
+    // without a formula falls back to its gain (premium kept in full).
+    const finished = TRADES.filter(t => t.status !== 'IN PLAY');
+    const premiumFinished = sum(finished, t => t.premiumCollected ?? (t.status === 'EXPIRED' ? (t.gainLoss || 0) : 0));
+    const premiumCollected = premiumInPlay + premiumFinished;
+    // Closing cost: only CLOSED trades are bought back (expired/assigned/called cost $0).
+    const closingCost = sum(closedKnown, t => t.closeCost || 0);
+    const assignedCapital = sum(assignedPuts, t => t.strike * shares(t));
+    const calledCapital = sum(calledCalls, t => t.strike * shares(t));
+    const assignedPaperLoss = sum(assignedPuts, t => t.exitPrice == null ? 0 : (t.exitPrice - t.strike) * shares(t));
     return {
+      premiumCollected,
+      premiumFinished,
+      premiumMissing: closedOnly.length - closedKnown.length,
+      closingCost,
+      assignedTrades: assignedPuts.length,
+      assignedContracts: sum(assignedPuts, t => t.contracts || 0),
+      assignedTickers: tickers(assignedPuts),
+      assignedCapital,
+      assignedPaperLoss,
+      assignedPaperLossNet: assignedPaperLoss + sum(assignedPuts, t => t.premiumCollected || 0),
+      calledTrades: calledCalls.length,
+      calledContracts: sum(calledCalls, t => t.contracts || 0),
+      calledTickers: tickers(calledCalls),
+      calledCapital,
+      calledUpside: sum(calledCalls, t => t.exitPrice == null ? 0 : Math.max(t.exitPrice - t.strike, 0) * shares(t)),
       totalTrades: TRADES.length,
       closed: closed.length,
       inPlay: inPlay.length,
@@ -689,6 +722,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
     if (s === 'CLOSED') return 'bg-zinc-800/60 text-zinc-300 border-zinc-700/50';
     if (s === 'EXPIRED') return 'bg-zinc-800/60 text-zinc-300 border-zinc-700/50';
     if (s === 'ASSIGNED') return 'bg-zinc-800/60 text-zinc-300 border-zinc-700/50';
+    if (s === 'CALLED') return 'bg-zinc-800/60 text-zinc-300 border-zinc-700/50';
     return 'bg-zinc-800 text-zinc-400 border-zinc-700';
   };
 
@@ -809,6 +843,109 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               <StatCard label="In Play" value={fmtCurrency(stats.premiumInPlay)} sublabel={`${stats.inPlay} positions · ${stats.inPlayShortPuts} short put${stats.inPlayShortPuts !== 1 ? 's' : ''} · ${stats.inPlayCoveredCalls} covered call${stats.inPlayCoveredCalls !== 1 ? 's' : ''}`} accent="sky" icon={Target} />
               <StatCard label="Notional Risk" value={fmtCurrencyWhole(stats.riskInPlay)} sublabel={`2026/2027: ${fmtCurrencyCompact(stats.riskInPlay2026 + stats.riskInPlay2027)}, LEAPS: ${fmtCurrencyCompact(stats.riskInPlay2028)}`} accent="rose" icon={AlertTriangle} />
             </div>
+
+            {/* ==================== PREMIUM, LOSSES & UPSIDE ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Premium, Losses <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Upside</h2>
+                <span className="text-xs font-mono text-zinc-500">— an alternative view of key metrics: premium, buybacks, assignments</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatCard label="Total Trades" value={stats.totalTrades} sublabel={`${stats.closed} closed · ${stats.wins} won · ${stats.losses} lost · ${stats.inPlay} in play`} accent="amber" icon={Activity} />
+              <StatCard label="Premium Collected" value={fmtCurrency(stats.premiumCollected)} sublabel={`In play ${fmtCurrency(stats.premiumInPlay)}${stats.premiumMissing ? ` · excl. ${stats.premiumMissing} closed w/o premium` : ''}`} accent="emerald" icon={DollarSign} />
+              <StatCard label="Cash Used to Close" value={fmtCurrency(stats.closingCost)} sublabel={`Buybacks on closed trades · expired $0${stats.premiumMissing ? ` · excl. ${stats.premiumMissing} closed w/o premium` : ''}`} accent="rose" icon={TrendingDown} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatCard label="Puts Assigned" value={`${stats.assignedContracts} contract${stats.assignedContracts !== 1 ? 's' : ''}`} sublabel={`${stats.assignedTrades} trade${stats.assignedTrades !== 1 ? 's' : ''} · ${stats.assignedTickers} ticker${stats.assignedTickers !== 1 ? 's' : ''}`} accent="amber" icon={Activity} />
+              <StatCard label="Capital Deployed" value={fmtCurrencyWhole(stats.assignedCapital)} sublabel="Strike × shares on assigned puts" accent="amber" icon={DollarSign} />
+              <StatCard label="Puts Paper Loss (excl. premium)" value={fmtCurrency(stats.assignedPaperLoss)} sublabel={`${fmtCurrency(stats.assignedPaperLossNet)} incl. premium · at assignment price`} accent="rose" icon={AlertTriangle} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatCard label="Calls Assigned" value={`${stats.calledContracts} contract${stats.calledContracts !== 1 ? 's' : ''}`} sublabel={`${stats.calledTrades} trade${stats.calledTrades !== 1 ? 's' : ''} · ${stats.calledTickers} ticker${stats.calledTickers !== 1 ? 's' : ''}`} accent="sky" icon={Activity} />
+              <StatCard label="Capital Received" value={fmtCurrencyWhole(stats.calledCapital)} sublabel="Strike × shares on called-away calls" accent="sky" icon={DollarSign} />
+              <StatCard label="Upside Given Away" value={fmtCurrency(stats.calledUpside)} sublabel="Price at call − strike · excl. premium" accent="rose" icon={Target} />
+            </div>
+
+            {/* ==================== P&L RECONCILIATION ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">P&L Reconciliation</h2>
+                <span className="text-xs font-mono text-zinc-500">— how the cards above add up to realized P&L and net cash</span>
+              </div>
+            </div>
+
+            {(() => {
+              const signed = (v) => `${v > 0 ? '+' : ''}${fmtCurrency(v)}`;
+              const pnlRows = [
+                { label: 'Premium Collected', note: 'card above', amount: stats.premiumCollected },
+                { label: 'In-play premium', note: 'not realized yet', amount: -stats.premiumInPlay },
+                { label: 'Premium on finished trades', amount: stats.premiumFinished, subtotal: true },
+                { label: 'Cash Used to Close', note: 'buybacks', amount: -stats.closingCost },
+                { label: 'Puts Paper Loss (excl. premium)', note: 'assigned at below strike', amount: stats.assignedPaperLoss },
+                { label: 'Upside Given Away', note: 'calls called away', amount: -stats.calledUpside },
+              ];
+              const computed = stats.premiumFinished - stats.closingCost + stats.assignedPaperLoss - stats.calledUpside;
+              const gap = stats.totalGain - computed;
+              if (Math.abs(gap) >= 0.01) {
+                pnlRows.push({ label: 'Unreconciled', note: 'closed trades without a premium formula', amount: gap, warn: true });
+              }
+              const cashRows = [
+                { label: 'Premium Collected', note: 'incl. in play', amount: stats.premiumCollected },
+                { label: 'Cash Used to Close', note: 'buybacks', amount: -stats.closingCost },
+                { label: 'Capital Deployed', note: 'shares bought on assigned puts', amount: -stats.assignedCapital },
+                { label: 'Capital Received', note: 'shares sold on called calls', amount: stats.calledCapital },
+              ];
+              const netCash = stats.premiumCollected - stats.closingCost - stats.assignedCapital + stats.calledCapital;
+              const walk = (title, subtitle, rows, totalLabel, total) => (
+                <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl overflow-hidden">
+                  <div className="px-4 sm:px-6 pt-5 pb-4">
+                    <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">{subtitle}</div>
+                    <div className="font-serif text-xl sm:text-2xl font-semibold">{title}</div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-zinc-900 border-y border-zinc-800 text-[10px] uppercase tracking-wider text-zinc-500">
+                        <tr>
+                          <th className="px-4 py-3 text-left">Step</th>
+                          <th className="px-4 py-3 text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="font-mono">
+                        {rows.map((r) => (
+                          <tr key={r.label} className={`border-b border-zinc-800/50 ${r.subtotal ? 'bg-zinc-900/60' : ''}`}>
+                            <td className={`px-4 py-2.5 ${r.warn ? 'text-amber-400' : r.subtotal ? 'text-zinc-200 font-semibold' : 'text-zinc-300'}`}>
+                              {r.warn ? '± ' : r.subtotal ? '= ' : r.amount < 0 ? '− ' : '+ '}{r.label}
+                              {r.note && <span className="text-zinc-500 text-xs"> · {r.note}</span>}
+                            </td>
+                            <td className={`px-4 py-2.5 text-right num whitespace-nowrap ${r.warn ? 'text-amber-400' : r.amount < 0 ? 'text-rose-400' : 'text-zinc-200'} ${r.subtotal ? 'font-semibold' : ''}`}>
+                              {r.warn ? signed(r.amount) : fmtCurrency(r.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="bg-zinc-900">
+                          <td className="px-4 py-3 text-zinc-100 font-semibold">= {totalLabel}</td>
+                          <td className={`px-4 py-3 text-right num whitespace-nowrap font-semibold ${total >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {signed(total)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {walk('Net Realized P&L', 'What closed trades earned', pnlRows, 'Net Realized P&L', stats.totalGain)}
+                  {walk('Net Cash Flow', 'Cash in minus cash out, incl. stock', cashRows, 'Net Cash Flow', netCash)}
+                </div>
+              );
+            })()}
 
             {/* ==================== EQUITY & EXPOSURE ==================== */}
             <div>
