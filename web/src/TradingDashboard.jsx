@@ -773,7 +773,7 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
           <div className="space-y-6">
             {/* Row 1: Headline counts */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <StatCard label="Total Trades" value={stats.totalTrades} sublabel={`${stats.closed} closed · ${stats.wins} won · ${stats.losses} lost`} accent="amber" icon={Activity} />
+              <StatCard label="Total Trades" value={stats.totalTrades} sublabel={`${stats.closed} closed · ${stats.wins} won · ${stats.losses} lost · ${stats.inPlay} in play`} accent="amber" icon={Activity} />
               <StatCard label="Win Rate" value={`${stats.closed > 0 ? ((stats.wins / stats.closed) * 100).toFixed(1) : '0.0'}%`} sublabel={`${stats.wins} wins of ${stats.closed} trades`} accent="emerald" icon={TrendingUp} />
             </div>
 
