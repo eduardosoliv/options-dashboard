@@ -129,6 +129,10 @@ describe('TradingDashboard', () => {
     // Stable UI chrome renders...
     expect(container.textContent).toContain('Overview');
     expect(container.textContent).toContain('Win Rate');
+    // Overview is split into sections.
+    for (const section of ['Key Metrics', 'Equity & Exposure', 'Winners & Losers']) {
+      expect(container.textContent).toContain(section);
+    }
     // ...and fixture data flows through (GOOGL is a closed trade shown on Overview).
     expect(container.textContent).toContain('GOOGL');
   });

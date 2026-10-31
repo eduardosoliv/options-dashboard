@@ -783,6 +783,15 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
         {/* OVERVIEW */}
         {activeView === 'overview' && (
           <div className="space-y-6">
+            {/* ==================== KEY METRICS ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Key Metrics</h2>
+                <span className="text-xs font-mono text-zinc-500">— trade counts, realized P&L and open exposure</span>
+              </div>
+            </div>
+
             {/* Row 1: Headline counts */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatCard label="Total Trades" value={stats.totalTrades} sublabel={`${stats.closed} closed · ${stats.wins} won · ${stats.losses} lost · ${stats.inPlay} in play`} accent="amber" icon={Activity} />
@@ -799,6 +808,15 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatCard label="In Play" value={fmtCurrency(stats.premiumInPlay)} sublabel={`${stats.inPlay} positions · ${stats.inPlayShortPuts} short put${stats.inPlayShortPuts !== 1 ? 's' : ''} · ${stats.inPlayCoveredCalls} covered call${stats.inPlayCoveredCalls !== 1 ? 's' : ''}`} accent="sky" icon={Target} />
               <StatCard label="Notional Risk" value={fmtCurrencyWhole(stats.riskInPlay)} sublabel={`2026/2027: ${fmtCurrencyCompact(stats.riskInPlay2026 + stats.riskInPlay2027)}, LEAPS: ${fmtCurrencyCompact(stats.riskInPlay2028)}`} accent="rose" icon={AlertTriangle} />
+            </div>
+
+            {/* ==================== EQUITY & EXPOSURE ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Equity <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Exposure</h2>
+                <span className="text-xs font-mono text-zinc-500">— realized P&L and open risk over time</span>
+              </div>
             </div>
 
             {/* Cumulative P&L sneak peek */}
@@ -878,6 +896,15 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
                   <Line yAxisId="notional" type="stepAfter" dataKey="notional" stroke="#fb7185" strokeWidth={2} dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>
+            </div>
+
+            {/* ==================== WINNERS & LOSERS ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Winners <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Losers</h2>
+                <span className="text-xs font-mono text-zinc-500">— top tickers and trades by realized P&L</span>
+              </div>
             </div>
 
             {/* Top winners */}
