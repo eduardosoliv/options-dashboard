@@ -21,6 +21,7 @@ import os
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -82,7 +83,12 @@ def get_creds(cred_path: str, token_path: str) -> Credentials:
     return creds
 
 
-def fetch_rows(creds: Credentials, spreadsheet_id: str, sheet_range: str) -> list[list[str]]:
+def fetch_rows(
+    creds: Credentials,
+    spreadsheet_id: str,
+    sheet_range: str,
+    render: str = "FORMATTED_VALUE",
+) -> list[list[Any]]:
     service = build("sheets", "v4", credentials=creds, cache_discovery=False)
     resp = (
         service.spreadsheets()
@@ -90,11 +96,11 @@ def fetch_rows(creds: Credentials, spreadsheet_id: str, sheet_range: str) -> lis
         .get(
             spreadsheetId=spreadsheet_id,
             range=sheet_range,
-            valueRenderOption="FORMATTED_VALUE",
+            valueRenderOption=render,
         )
         .execute()
     )
-    values: list[list[str]] = resp.get("values", [])
+    values: list[list[Any]] = resp.get("values", [])
     return values
 
 
@@ -143,7 +149,10 @@ def main() -> int:
         previous = read_existing_trades(output_path)
         creds = get_creds(cred_path, token_path)
         rows = fetch_rows(creds, spreadsheet_id, sheet_range)
-        trades = normalize_rows(rows)
+        # Same range again as formulas: ASSIGNED/CALLED Gain/Loss formulas carry
+        # the exit price and premium, which the rendered values don't expose.
+        formula_rows = fetch_rows(creds, spreadsheet_id, sheet_range, render="FORMULA")
+        trades = normalize_rows(rows, formula_rows)
         write_trades(output_path, trades)  # guards empty, writes atomically
     except Exception as exc:  # noqa: BLE001 - log and leave existing file intact
         print(f"ERROR: fetch failed, leaving {output_path} untouched: {exc}", file=sys.stderr)

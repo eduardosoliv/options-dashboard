@@ -86,13 +86,19 @@ reads them directly, so keep them in sync:
 ```
 acquired, expires, status, ticker, contracts, type, premium, strike, price,
 buffer, riskLevel, riskCategory, duration, estYield, closedOn, gainLoss,
-capital, realYield
+capital, realYield, exitPrice, premiumCollected, closeCost
 ```
 
 Sheet-parsing rules that are easy to get wrong (`fetcher/normalize.py`):
 
 - **`status`** comes from the sheet's `Days` column: a numeric value ⇒ `"IN PLAY"`;
-  otherwise the literal (`CLOSED` / `ASSIGNED` / `EXPIRED`).
+  otherwise the literal (`CLOSED` / `ASSIGNED` / `EXPIRED` / `CALLED`).
+- **`exitPrice` / `premiumCollected`** are parsed from the Gain/Loss *formula*
+  (the fetcher reads the range twice: formatted values + `FORMULA`). ASSIGNED
+  and CALLED rows use `=-(($E*100)*($I-<price>))+(<premium>)` (put) or
+  `=-(($E*100)*(<price>-$I))+(<premium>)` (call). CLOSED rows written as
+  `=(<premium>)-(<cost>)` yield `premiumCollected` + `closeCost`. Anything else
+  (incl. the plain netted numbers on most CLOSED rows) ⇒ `None`.
 - **Column 11/12 are swapped vs their headers**: the emoji risk *category* is in
   column 11, the dollar *risk level* in column 12 (`COL` follows the data, not
   the header labels).
