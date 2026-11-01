@@ -20,11 +20,11 @@ fetcher/            Python service (managed with uv)
   tests/              pytest (runs against a real sample CSV export)
 web/                Vite + React 19 + Tailwind v4 app
   src/App.jsx              data loader: fetch + 10-min refresh + remount-on-change
-  src/TradingDashboard.jsx VENDORED dashboard (see rules below) — takes `tradesData` + `updatedAt` props
-  src/data.js             trades.json fetch + djb2 content hash
+  src/TradingDashboard.jsx VENDORED dashboard (see rules below) — takes `tradesData` + `updatedAt` (+ optional `benchmarks`) props
+  src/data.js             trades.json + benchmarks.json fetch, djb2 content hash
   src/*.test.*            vitest (loader unit test + jsdom render smoke test)
   trades-example.json      sample dataset for previewing without Google (see README)
-config-example.toml template for `config.toml` (git-ignored): spreadsheet_id, sheet_range, output_path
+config-example.toml template for `config.toml` (git-ignored): spreadsheet_id, sheet_range, output_path, optional [benchmarks]
 docs/superpowers/   design specs & implementation plans
 justfile            task runner — the canonical entrypoint for all commands
 ```
@@ -73,7 +73,7 @@ Raw equivalents: `cd fetcher && uv run <ruff|mypy|pytest>`; `cd web && npm run <
   `biome.json`). Strict tooling applies to code we author, not this file.
 - **Do not reformat it or refactor its internals.** The only sanctioned edits so
   far: removing hardcoded data + dead code, and the `{ tradesData, updatedAt }`
-  prop swap.
+  prop swap, plus the optional `benchmarks` prop.
 - It reads all trade data from `const TRADES = tradesData;` (first line of the
   component). `App.jsx` remounts it via `key={sig}` when data changes, so its
   many `useMemo(…, [])` hooks recompute — do not "fix" those empty deps.
@@ -110,6 +110,16 @@ Sheet-parsing rules that are easy to get wrong (`fetcher/normalize.py`):
   call spreads are tracked in the sheet but deliberately not imported.
 - Money strips `$`/`,`; percent strips `%`; blanks become `None`.
 
+### Benchmarks (`benchmarks.json`)
+
+Optional `[benchmarks]` in `config.toml` (`put_return` = Cboe PutWrite Index,
+`tbill_return` = T-bill rate on put collateral, both annualized %; `period` label) is written by the fetcher to `benchmarks.json` next to
+`trades.json` as `{ putReturn, tbillReturn, period }` (each may be `null`).
+`trades.json` stays a plain list. A bad table only warns — it never blocks the
+trades fetch. The dashboard gets it as the `benchmarks` prop (no remount; it's
+read in render, not in `useMemo`) and treats a 404 / non-JSON response as "not
+configured".
+
 ## Invariants — don't break these
 
 - **Fail-safe fetch:** `fetch_trades.py` must never overwrite a good
@@ -134,7 +144,11 @@ Sheet-parsing rules that are easy to get wrong (`fetcher/normalize.py`):
   render smoke test that mounts the full dashboard with a fixture). The render
   test guards against breakage on dependency upgrades; jsdom can't lay out SVG
   charts, so it verifies *mount*, not visual layout — a human should eyeball the
-  live dashboard after major UI/recharts changes.
+  live dashboard after major UI/recharts changes. `App.test.jsx` drives `App`
+  with a mocked `fetch` (trades + benchmarks loading); `web/vite.config.test.js`
+  covers the dev-server middleware that serves `dist/trades.json` and
+  `dist/benchmarks.json` during `just dev` (every fetcher output file must be
+  listed there, or dev falls back to `index.html`).
 - After any change, run `just check` and confirm it's green before reporting done.
 
 ## Git workflow
