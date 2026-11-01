@@ -127,7 +127,7 @@ describe('TradingDashboard', () => {
   it('lays out Key Metrics as eight cards in order', () => {
     const { container } = render(<TradingDashboard tradesData={TRADES} />);
     const text = container.textContent;
-    const keyMetrics = text.slice(text.indexOf('Key Metrics'), text.indexOf('Premium, Losses'));
+    const keyMetrics = text.slice(text.indexOf('Key Metrics'), text.indexOf('Premium & Buybacks'));
     const labels = [
       'Total Trades',
       'Win Rate',
@@ -176,8 +176,8 @@ describe('TradingDashboard stats and sections', () => {
   });
 });
 
-describe('TradingDashboard Premium, Losses & Upside', () => {
-  it('shows premium, buybacks and assignments in Premium, Losses & Upside', () => {
+describe('TradingDashboard premium & assignment sections', () => {
+  it('splits premium, buybacks and assignments into two sections', () => {
     // JPM closed via =(400)-(133.38); GOOGL closed with no formula (premium unknown).
     const closedKnown = { ...TRADES[2], premiumCollected: 400, closeCost: 133.38 };
     // AMZN 435P assigned at 397.85 for 513.33 premium; VEEV 250C called at 260.21.
@@ -202,24 +202,36 @@ describe('TradingDashboard Premium, Losses & Upside', () => {
     const trades = [TRADES[0], TRADES[1], closedKnown, TRADES[3], assigned, called, expired];
     const { container } = render(<TradingDashboard tradesData={trades} />);
     const text = container.textContent;
-    expect(text).toContain('Premium, Losses & Upside');
-    // Row 1: in-play 891.96 + formula premiums 400 + 513.33 + 317.34 + 100.
+    for (const section of ['Premium & Buybacks', 'Assignments']) {
+      expect(text).toContain(section);
+    }
+    expect(text).not.toContain('Premium, Losses & Upside');
+    // Premium & Buybacks: in-play 891.96 + formula premiums 400 + 513.33 + 317.34 + 100.
     expect(text).toContain('$2,222.63In play $891.96 · excl. 1 closed w/o premium');
     expect(text).toContain(
       'Cash Used to Close$133.38Buybacks on closed trades · expired $0 · excl. 1 closed w/o premium',
     );
-    // Row 2: assigned puts.
-    expect(text).toContain('Puts Assigned1 contract1 trade · 1 ticker');
-    expect(text).toContain('Capital Deployed$43,500');
+    // Assignments: puts row, then calls row.
+    expect(text).toContain(
+      'Capital Deployed$43,500Strike × shares · 1 contract · 1 trade · 1 ticker',
+    );
     expect(text).toContain(
       'Puts Paper Loss (excl. premium)-$3,715.00-$3,201.67 incl. premium · at assignment price',
     );
-    // Row 3: called calls.
-    expect(text).toContain('Calls Assigned1 contract1 trade · 1 ticker');
-    expect(text).toContain('Capital Received$25,000');
+    expect(text).toContain(
+      'Capital Received$25,000Strike × shares · 1 contract · 1 trade · 1 ticker',
+    );
     expect(text).toContain('Upside Given Away$1,021.00');
   });
+});
 
+/** True when every needle occurs in haystack, in the given order. */
+const isInOrder = (haystack, needles) => {
+  const positions = needles.map((n) => haystack.indexOf(n));
+  return positions.every((p, i) => p >= 0 && (i === 0 || p > positions[i - 1]));
+};
+
+describe('TradingDashboard premium & assignment layout', () => {
   it('drops the missing-premium note once every closed trade has a formula', () => {
     const trades = TRADES.map((t) =>
       t.status === 'CLOSED' ? { ...t, premiumCollected: t.gainLoss + 10, closeCost: 10 } : t,
@@ -229,6 +241,70 @@ describe('TradingDashboard Premium, Losses & Upside', () => {
       'Cash Used to Close$20.00Buybacks on closed trades · expired $0',
     );
     expect(container.textContent).not.toContain('w/o premium');
+  });
+
+  it('orders sections and cards two per row, with Total Trades only in Key Metrics', () => {
+    const { container } = render(<TradingDashboard tradesData={TRADES} />);
+    const text = container.textContent;
+    expect(
+      isInOrder(text, ['Key Metrics', 'Premium & Buybacks', 'Assignments', 'P&L Reconciliation']),
+    ).toBe(true);
+    const premium = text.slice(text.indexOf('Premium & Buybacks'), text.indexOf('Assignments'));
+    expect(isInOrder(premium, ['Premium Collected', 'Cash Used to Close'])).toBe(true);
+    const assignments = text.slice(text.indexOf('Assignments'), text.indexOf('P&L Reconciliation'));
+    expect(
+      isInOrder(assignments, [
+        'Capital Deployed',
+        'Puts Paper Loss',
+        'Capital Received',
+        'Upside Given Away',
+      ]),
+    ).toBe(true);
+    // Total Trades is shown once (Key Metrics); the count-only cards are folded into sublabels.
+    expect(text.split('Total Trades')).toHaveLength(2);
+    expect(text).not.toContain('Puts Assigned');
+    expect(text).not.toContain('Calls Assigned');
+  });
+});
+
+describe('TradingDashboard assignment sublabels', () => {
+  it('pluralizes assignment counts in the capital card sublabels', () => {
+    const put = (ticker, contracts) => ({ ...TRADES[4], ticker, contracts, strike: 100 });
+    const call = (ticker, contracts) => ({
+      ...TRADES[3],
+      status: 'CALLED',
+      ticker,
+      contracts,
+      strike: 50,
+    });
+    const trades = [
+      ...TRADES.filter((t) => t.status !== 'ASSIGNED'),
+      put('AMZN', 2),
+      put('NFLX', 1),
+      call('VEEV', 1),
+      call('VEEV', 3),
+    ];
+    const { container } = render(<TradingDashboard tradesData={trades} />);
+    const text = container.textContent;
+    // Puts: 3 contracts × 100 × $100; calls: 4 contracts × 100 × $50, one ticker.
+    expect(text).toContain(
+      'Capital Deployed$30,000Strike × shares · 3 contracts · 2 trades · 2 tickers',
+    );
+    expect(text).toContain(
+      'Capital Received$20,000Strike × shares · 4 contracts · 2 trades · 1 ticker',
+    );
+  });
+
+  it('shows zero assignments without breaking the section', () => {
+    const trades = TRADES.filter((t) => t.status !== 'ASSIGNED');
+    const { container } = render(<TradingDashboard tradesData={trades} />);
+    const text = container.textContent;
+    expect(text).toContain(
+      'Capital Deployed$0Strike × shares · 0 contracts · 0 trades · 0 tickers',
+    );
+    expect(text).toContain(
+      'Capital Received$0Strike × shares · 0 contracts · 0 trades · 0 tickers',
+    );
   });
 });
 

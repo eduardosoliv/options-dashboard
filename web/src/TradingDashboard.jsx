@@ -892,30 +892,36 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               <StatCard label="Notional Risk" value={fmtCurrencyWhole(stats.riskInPlay)} sublabel={`2026/2027: ${fmtCurrencyCompact(stats.riskInPlay2026 + stats.riskInPlay2027)}, LEAPS: ${fmtCurrencyCompact(stats.riskInPlay2028)}`} accent="rose" icon={AlertTriangle} />
             </div>
 
-            {/* ==================== PREMIUM, LOSSES & UPSIDE ==================== */}
+            {/* ==================== PREMIUM & BUYBACKS ==================== */}
             <div>
               <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
-                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Premium, Losses <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Upside</h2>
-                <span className="text-xs font-mono text-zinc-500">— an alternative view of key metrics: premium, buybacks, assignments</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Premium <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Buybacks</h2>
+                <span className="text-xs font-mono text-zinc-500">— cash in from writing options, cash out to close them</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <StatCard label="Total Trades" value={stats.totalTrades} sublabel={`${stats.closed} closed · ${stats.wins} won · ${stats.losses} lost · ${stats.inPlay} in play`} accent="amber" icon={Activity} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatCard label="Premium Collected" value={fmtCurrency(stats.premiumCollected)} sublabel={`In play ${fmtCurrency(stats.premiumInPlay)}${stats.premiumMissing ? ` · excl. ${stats.premiumMissing} closed w/o premium` : ''}`} accent="emerald" icon={DollarSign} />
               <StatCard label="Cash Used to Close" value={fmtCurrency(stats.closingCost)} sublabel={`Buybacks on closed trades · expired $0${stats.premiumMissing ? ` · excl. ${stats.premiumMissing} closed w/o premium` : ''}`} accent="rose" icon={TrendingDown} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <StatCard label="Puts Assigned" value={`${stats.assignedContracts} contract${stats.assignedContracts !== 1 ? 's' : ''}`} sublabel={`${stats.assignedTrades} trade${stats.assignedTrades !== 1 ? 's' : ''} · ${stats.assignedTickers} ticker${stats.assignedTickers !== 1 ? 's' : ''}`} accent="amber" icon={Activity} />
-              <StatCard label="Capital Deployed" value={fmtCurrencyWhole(stats.assignedCapital)} sublabel="Strike × shares on assigned puts" accent="amber" icon={DollarSign} />
+            {/* ==================== ASSIGNMENTS ==================== */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Assignments</h2>
+                <span className="text-xs font-mono text-zinc-500">— shares put to you and shares called away</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <StatCard label="Capital Deployed" value={fmtCurrencyWhole(stats.assignedCapital)} sublabel={`Strike × shares · ${stats.assignedContracts} contract${stats.assignedContracts !== 1 ? 's' : ''} · ${stats.assignedTrades} trade${stats.assignedTrades !== 1 ? 's' : ''} · ${stats.assignedTickers} ticker${stats.assignedTickers !== 1 ? 's' : ''}`} accent="amber" icon={DollarSign} />
               <StatCard label="Puts Paper Loss (excl. premium)" value={fmtCurrency(stats.assignedPaperLoss)} sublabel={`${fmtCurrency(stats.assignedPaperLossNet)} incl. premium · at assignment price`} accent="rose" icon={AlertTriangle} />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <StatCard label="Calls Assigned" value={`${stats.calledContracts} contract${stats.calledContracts !== 1 ? 's' : ''}`} sublabel={`${stats.calledTrades} trade${stats.calledTrades !== 1 ? 's' : ''} · ${stats.calledTickers} ticker${stats.calledTickers !== 1 ? 's' : ''}`} accent="sky" icon={Activity} />
-              <StatCard label="Capital Received" value={fmtCurrencyWhole(stats.calledCapital)} sublabel="Strike × shares on called-away calls" accent="sky" icon={DollarSign} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <StatCard label="Capital Received" value={fmtCurrencyWhole(stats.calledCapital)} sublabel={`Strike × shares · ${stats.calledContracts} contract${stats.calledContracts !== 1 ? 's' : ''} · ${stats.calledTrades} trade${stats.calledTrades !== 1 ? 's' : ''} · ${stats.calledTickers} ticker${stats.calledTickers !== 1 ? 's' : ''}`} accent="sky" icon={DollarSign} />
               <StatCard label="Upside Given Away" value={fmtCurrency(stats.calledUpside)} sublabel="Price at call − strike · excl. premium" accent="rose" icon={Target} />
             </div>
 
