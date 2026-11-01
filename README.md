@@ -103,6 +103,13 @@ sample file).
    client). You should then see `OK: wrote N trades …` and a new
    `fetcher/token.json` (the stored refresh token, so this consent is one-time).
 
+> **Optional benchmarks:** to compare your short puts with the Cboe PutWrite
+> Index (PUT), uncomment the `[benchmarks]` table in `config.toml` and fill in
+> PUT's annualized return for your trading window plus the T-bill rate on your
+> collateral. The next `just fetch` writes them to `web/dist/benchmarks.json`,
+> and the Overview's **Yield vs Benchmarks** section shows short put yield +
+> T-bill against PUT (which also earns T-bill interest on its collateral).
+
 > The Sheet's tab must be named **`Master`** (the default `sheet_range` in
 > `config.toml`). If yours differs, set `sheet_range` accordingly.
 
@@ -213,7 +220,7 @@ All via `just` (run `just --list` to see them):
 | `just dev` | Web app in dev mode with hot reload (`http://localhost:5173`) |
 | `just build` | Build the web app to `web/dist/` |
 | `just serve` | Serve the built app on `http://localhost:4173` |
-| `just fetch` | Run the fetcher once → `web/dist/trades.json` (reads `config.toml`) |
+| `just fetch` | Run the fetcher once → `web/dist/trades.json` (+ `benchmarks.json` if configured; reads `config.toml`) |
 | `just test` | Run all tests (pytest + vitest) |
 | `just lint` | Lint everything, no writes (ruff, biome) — no type-checking |
 | `just fmt` | Auto-format + auto-fix everything (ruff + biome) |

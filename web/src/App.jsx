@@ -1,8 +1,38 @@
 import { useEffect, useState } from 'react';
-import { loadTrades } from './data.js';
+import { loadBenchmarks, loadTrades } from './data.js';
 import TradingDashboard from './TradingDashboard.jsx';
 
 const REFRESH_MS = 10 * 60 * 1000;
+
+/**
+ * Optional benchmarks.json, refreshed with the trades; keeps the last good
+ * value on a failed fetch, like the trades.
+ * @returns {import('./data.js').Benchmarks | null}
+ */
+function useBenchmarks() {
+  const [benchmarks, setBenchmarks] = useState(
+    /** @type {import('./data.js').Benchmarks | null} */ (null),
+  );
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const next = await loadBenchmarks();
+        if (active) setBenchmarks(next);
+      } catch (e) {
+        // biome-ignore lint/suspicious/noConsole: surface load failures to the browser console
+        console.error('benchmarks load failed', e);
+      }
+    };
+    load();
+    const id = setInterval(load, REFRESH_MS);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, []);
+  return benchmarks;
+}
 
 export default function App() {
   const [state, setState] = useState(
@@ -13,6 +43,7 @@ export default function App() {
     }),
   );
   const [error, setError] = useState(/** @type {unknown} */ (null));
+  const benchmarks = useBenchmarks();
 
   useEffect(() => {
     let active = true;
@@ -54,5 +85,12 @@ export default function App() {
       </div>
     );
   }
-  return <TradingDashboard tradesData={state.trades} updatedAt={state.updatedAt} key={state.sig} />;
+  return (
+    <TradingDashboard
+      tradesData={state.trades}
+      updatedAt={state.updatedAt}
+      benchmarks={benchmarks}
+      key={state.sig}
+    />
+  );
 }

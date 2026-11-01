@@ -124,17 +124,15 @@ const TRADES = [
 ];
 
 describe('TradingDashboard', () => {
-  it('lays out Key Metrics as eight cards in order', () => {
+  it('lays out Key Metrics as six cards in order', () => {
     const { container } = render(<TradingDashboard tradesData={TRADES} />);
     const text = container.textContent;
-    const keyMetrics = text.slice(text.indexOf('Key Metrics'), text.indexOf('Premium & Buybacks'));
+    const keyMetrics = text.slice(text.indexOf('Key Metrics'), text.indexOf('Yield vs Benchmarks'));
     const labels = [
       'Total Trades',
       'Win Rate',
       'Realized Gains',
       'Realized Losses',
-      'Short Put Yield',
-      'Covered Call Yield',
       'In Play',
       'Notional Risk',
     ];
@@ -142,6 +140,7 @@ describe('TradingDashboard', () => {
     expect(positions.every((p) => p >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
     expect(text).toContain('Win Rate66.7%2 wins of 3 trades');
+    expect(keyMetrics).not.toContain('Yield');
   });
 
   it('mounts with mixed trade data and renders content without throwing', () => {
@@ -247,7 +246,13 @@ describe('TradingDashboard premium & assignment layout', () => {
     const { container } = render(<TradingDashboard tradesData={TRADES} />);
     const text = container.textContent;
     expect(
-      isInOrder(text, ['Key Metrics', 'Premium & Buybacks', 'Assignments', 'P&L Reconciliation']),
+      isInOrder(text, [
+        'Key Metrics',
+        'Yield vs Benchmarks',
+        'Premium & Buybacks',
+        'Assignments',
+        'P&L Reconciliation',
+      ]),
     ).toBe(true);
     const premium = text.slice(text.indexOf('Premium & Buybacks'), text.indexOf('Assignments'));
     expect(isInOrder(premium, ['Premium Collected', 'Cash Used to Close'])).toBe(true);
@@ -527,5 +532,73 @@ describe('TradingDashboard covered call yield', () => {
     const { container } = render(<TradingDashboard tradesData={trades} />);
     // GOOGL has no premium formula: premium-only uses VEEV alone, 317.34 × 365 ÷ (25000 × 60) = 7.72%
     expect(container.textContent).toContain('7.72% premium-only · 2 closed calls (1 w/o premium)');
+  });
+});
+
+const BENCH = { putReturn: 7.5, tbillReturn: 4, period: 'Jan 2025 – Oct 2026' };
+/** Renders the dashboard and returns the Yield vs Benchmarks section's text. */
+const renderBenchmarkSection = (props, trades = TRADES) => {
+  const text = render(<TradingDashboard tradesData={trades} {...props} />).container.textContent;
+  return text.slice(text.indexOf('Yield vs Benchmarks'), text.indexOf('Premium & Buybacks'));
+};
+
+describe('TradingDashboard Yield vs Benchmarks', () => {
+  const renderSection = renderBenchmarkSection;
+
+  it('lays out four cards: put yield, put + T-bill, PUT benchmark, call yield', () => {
+    const text = renderSection({ benchmarks: BENCH });
+    expect(text).toContain('short puts vs the Cboe PutWrite Index · Jan 2025 – Oct 2026');
+    expect(
+      isInOrder(text, [
+        'Short Put Yield',
+        'Short Put + T-bill',
+        'Benchmark: PutWrite (PUT)',
+        'Covered Call Yield',
+      ]),
+    ).toBe(true);
+    // Covered calls have no like-for-like index, so BuyWrite isn't shown.
+    expect(text).not.toContain('BXM');
+  });
+
+  it('adds the T-bill rate to put yield and compares that with PUT', () => {
+    const text = renderSection({ benchmarks: BENCH });
+    // Put yield -18.79% + 4% T-bill = -14.79%, vs PUT 7.50% => -22.29 pts.
+    expect(text).toContain('Short Put Yield-18.79%');
+    expect(text).toContain(
+      'Short Put + T-bill-14.79%Short put yield + 4.00% T-bill interest on collateral (assumed)',
+    );
+    expect(text).toContain(
+      'Benchmark: PutWrite (PUT)7.50%Cboe S&P 500 PutWrite, annualized · you -22.29 pts (short put + T-bill)',
+    );
+    expect(text).toContain('Covered Call Yield5.29%');
+  });
+});
+
+describe('TradingDashboard Yield vs Benchmarks edge cases', () => {
+  const renderSection = renderBenchmarkSection;
+
+  it('signs a positive spread with a plus', () => {
+    const text = renderSection({ benchmarks: { ...BENCH, putReturn: -15.79 } });
+    expect(text).toContain('you +1.00 pts (short put + T-bill)');
+  });
+
+  it('asks for config.toml values when benchmarks are missing', () => {
+    const text = renderSection({});
+    expect(text).toContain('Short Put + T-bill—Set [benchmarks] tbill_return in config.toml');
+    expect(text).toContain('Benchmark: PutWrite (PUT)—Set [benchmarks] put_return in config.toml');
+    expect(text).toContain('short puts vs the Cboe PutWrite IndexShort Put Yield');
+  });
+
+  it('compares raw put yield with PUT when no T-bill rate is set', () => {
+    const text = renderSection({ benchmarks: { ...BENCH, tbillReturn: null } });
+    expect(text).toContain('Set [benchmarks] tbill_return in config.toml');
+    expect(text).toContain('you -26.29 pts (short put yield (no T-bill set))');
+  });
+
+  it('shows no spread when there is no put yield yet', () => {
+    const inPlayOnly = TRADES.filter((t) => t.status === 'IN PLAY');
+    const text = renderSection({ benchmarks: BENCH }, inPlayOnly);
+    expect(text).toContain('Short Put + T-bill—');
+    expect(text).toContain('PutWrite, annualized · no short put yield yet');
   });
 });

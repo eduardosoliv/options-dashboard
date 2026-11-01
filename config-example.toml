@@ -10,3 +10,15 @@ sheet_range = "Master"
 
 # Where to write trades.json. Relative paths are resolved from the project root.
 output_path = "web/dist/trades.json"
+
+# Optional: benchmarks for the dashboard's "Yield vs Benchmarks" section, in annualized
+# percent (7.5 means 7.5%). put_return is the Cboe PutWrite Index's return over the
+# same window as your trades (first trade -> today; cboe.com factsheets), and
+# tbill_return the T-bill rate your put collateral earns (or could earn). PUT earns
+# T-bill interest on its collateral, so it's compared with short put yield + T-bill.
+# Update them occasionally. `just fetch` writes them to benchmarks.json next to
+# trades.json. Leave the table out (or a key unset) and the dashboard asks for it.
+# [benchmarks]
+# period = "Jan 2025 - Oct 2026"   # label shown in the section header
+# put_return = 7.5                 # Cboe S&P 500 PutWrite Index (PUT)
+# tbill_return = 4.0               # T-bill rate on put collateral

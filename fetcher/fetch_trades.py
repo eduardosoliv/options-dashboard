@@ -10,6 +10,10 @@ config.toml keys:
   sheet_range      tab/range to read (default "Master")
   output_path      where to write trades.json, relative to the project root
                    (default "web/dist/trades.json")
+  [benchmarks]     optional annualized %, written to benchmarks.json next to
+                   trades.json: put_return (Cboe PutWrite Index, PUT),
+                   tbill_return (T-bill rate assumed on put collateral),
+                   period (label for the window they cover)
 
 OAuth file locations can still be overridden via the environment:
   CREDENTIALS_PATH OAuth client secret (default fetcher/credentials.json)
@@ -21,7 +25,7 @@ import os
 import sys
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -38,6 +42,14 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 CONFIG_PATH = PROJECT_ROOT / "config.toml"
 EXAMPLE_CONFIG_PATH = PROJECT_ROOT / "config-example.toml"
+
+
+class Benchmarks(TypedDict):
+    """Strategy-index returns from config.toml, as written to benchmarks.json."""
+
+    putReturn: float | None  # camelCase: matches the dashboard's JSON keys
+    tbillReturn: float | None
+    period: str | None
 
 
 def write_json_atomic(path: str, data: object) -> None:
@@ -108,11 +120,7 @@ class ConfigError(Exception):
     """Raised when config.toml is missing or incomplete."""
 
 
-def load_config() -> tuple[str, str, str]:
-    """Return (spreadsheet_id, sheet_range, output_path) from config.toml.
-
-    output_path is resolved to an absolute path relative to the project root.
-    """
+def _read_config() -> dict[str, Any]:
     if not CONFIG_PATH.exists():
         msg = (
             f"no config file at {CONFIG_PATH}\n"
@@ -120,7 +128,42 @@ def load_config() -> tuple[str, str, str]:
         )
         raise ConfigError(msg)
     with CONFIG_PATH.open("rb") as f:
-        cfg = tomllib.load(f)
+        return tomllib.load(f)
+
+
+def parse_benchmarks(cfg: dict[str, Any]) -> Benchmarks | None:
+    """Return the `[benchmarks]` table as Benchmarks, or None if it's absent."""
+    table = cfg.get("benchmarks")
+    if table is None:
+        return None
+    if not isinstance(table, dict):
+        msg = "'benchmarks' must be a table: [benchmarks]"
+        raise ConfigError(msg)
+
+    def pct(key: str) -> float | None:
+        value = table.get(key)
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            msg = f"benchmarks.{key} must be a number (annualized %), got {value!r}"
+            raise ConfigError(msg)
+        return float(value)
+
+    period = str(table.get("period", "")).strip() or None
+    return {"putReturn": pct("put_return"), "tbillReturn": pct("tbill_return"), "period": period}
+
+
+def load_benchmarks() -> Benchmarks | None:
+    """Return the optional `[benchmarks]` table from config.toml."""
+    return parse_benchmarks(_read_config())
+
+
+def load_config() -> tuple[str, str, str]:
+    """Return (spreadsheet_id, sheet_range, output_path) from config.toml.
+
+    output_path is resolved to an absolute path relative to the project root.
+    """
+    cfg = _read_config()
 
     spreadsheet_id = str(cfg.get("spreadsheet_id", "")).strip()
     if not spreadsheet_id or spreadsheet_id == "paste-your-sheet-id-here":
@@ -144,6 +187,14 @@ def main() -> int:
         return 2
     cred_path = os.environ.get("CREDENTIALS_PATH", str(SCRIPT_DIR / "credentials.json"))
     token_path = os.environ.get("TOKEN_PATH", str(SCRIPT_DIR / "token.json"))
+
+    # Benchmarks are optional extras: a bad table warns but never blocks the trades fetch.
+    try:
+        benchmarks = load_benchmarks()
+        if benchmarks is not None:
+            write_json_atomic(str(Path(output_path).with_name("benchmarks.json")), benchmarks)
+    except (ConfigError, OSError) as exc:
+        print(f"WARNING: skipping benchmarks.json: {exc}", file=sys.stderr)
 
     try:
         previous = read_existing_trades(output_path)
