@@ -27,3 +27,23 @@ export async function loadTrades(url = '/trades.json') {
   const text = await res.text();
   return { trades: JSON.parse(text), sig: signature(text), updatedAt };
 }
+
+/**
+ * @typedef {{ putReturn: number | null; tbillReturn: number | null; period: string | null }} Benchmarks
+ */
+
+/**
+ * Fetch benchmarks.json (PUT index return + T-bill rate from config.toml).
+ * Resolves to null when the file doesn't exist (benchmarks not configured) —
+ * a 404, or the HTML page Vite's SPA fallback serves in its place; throws on
+ * any other failure so the caller can keep its last good value.
+ * @param {string} [url]
+ * @returns {Promise<Benchmarks | null>}
+ */
+export async function loadBenchmarks(url = '/benchmarks.json') {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`benchmarks.json fetch failed: ${res.status}`);
+  if (!res.headers.get('content-type')?.includes('json')) return null;
+  return /** @type {Benchmarks} */ (await res.json());
+}

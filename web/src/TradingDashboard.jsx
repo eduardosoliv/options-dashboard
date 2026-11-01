@@ -50,7 +50,7 @@ const isWin = (t) => t.gainLoss > 0;
 const isLoss = (t) => t.gainLoss < 0;
 const isClosed = (t) => t.status !== 'IN PLAY';
 
-export default function TradingDashboard({ tradesData, updatedAt }) {
+export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) {
   const TRADES = tradesData;
   const updatedLabel = updatedAt
     ? new Date(updatedAt).toLocaleString('en-US', {
@@ -880,16 +880,31 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
               <StatCard label="Realized Losses" value={fmtCurrency(TRADES.filter(isClosed).filter(isLoss).reduce((s,t)=>s+t.gainLoss,0))} sublabel={`Avg ${fmtCurrency(stats.avgLoss)} · Median ${fmtCurrency(stats.medianLoss)} · Min ${fmtCurrency(stats.minLoss)} · Max ${fmtCurrency(stats.maxLoss)}`} accent="rose" icon={TrendingDown} large />
             </div>
 
-            {/* Row 3: Annualized yield (capital-days) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <StatCard label="Short Put Yield" value={fmtPct(putYieldSummary.capitalDays)} sublabel={`Annualized capital-days · ${fmtPct(putYieldSummary.capitalWeighted)} capital-weighted · ${putYieldSummary.count} closed puts incl. assigned`} accent="emerald" icon={TrendingUp} />
-              <StatCard label="Covered Call Yield" value={fmtPct(callYieldSummary.net)} sublabel={`Annualized capital-days, net of buybacks · ${fmtPct(callYieldSummary.premium)} premium-only · ${callYieldSummary.count} closed calls${callYieldSummary.premiumMissing ? ` (${callYieldSummary.premiumMissing} w/o premium)` : ''}`} accent="sky" icon={DollarSign} />
-            </div>
-
-            {/* Row 4: Open exposure */}
+            {/* Row 3: Open exposure */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <StatCard label="In Play" value={fmtCurrency(stats.premiumInPlay)} sublabel={`${stats.inPlay} positions · ${stats.inPlayShortPuts} short put${stats.inPlayShortPuts !== 1 ? 's' : ''} · ${stats.inPlayCoveredCalls} covered call${stats.inPlayCoveredCalls !== 1 ? 's' : ''}`} accent="sky" icon={Target} />
               <StatCard label="Notional Risk" value={fmtCurrencyWhole(stats.riskInPlay)} sublabel={`2026/2027: ${fmtCurrencyCompact(stats.riskInPlay2026 + stats.riskInPlay2027)}, LEAPS: ${fmtCurrencyCompact(stats.riskInPlay2028)}`} accent="rose" icon={AlertTriangle} />
+            </div>
+
+            {/* ==================== YIELD VS BENCHMARKS ==================== */}
+            {/* Annualized % from config.toml [benchmarks] (benchmarks.json): PUT's return, and the
+                T-bill rate assumed on put collateral (PUT itself earns T-bill interest on its collateral). */}
+            <div>
+              <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Yield vs Benchmarks</h2>
+                <span className="text-xs font-mono text-zinc-500">— short puts vs the Cboe PutWrite Index{benchmarks?.period ? ` · ${benchmarks.period}` : ''}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <StatCard label="Short Put Yield" value={fmtPct(putYieldSummary.capitalDays)} sublabel={`Annualized capital-days · ${fmtPct(putYieldSummary.capitalWeighted)} capital-weighted · ${putYieldSummary.count} closed puts incl. assigned`} accent="emerald" icon={TrendingUp} />
+              <PutPlusTbillCard putYield={putYieldSummary.capitalDays} tbill={benchmarks?.tbillReturn} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <PutBenchmarkCard putYield={putYieldSummary.capitalDays} tbill={benchmarks?.tbillReturn} index={benchmarks?.putReturn} />
+              <StatCard label="Covered Call Yield" value={fmtPct(callYieldSummary.net)} sublabel={`Annualized capital-days, net of buybacks · ${fmtPct(callYieldSummary.premium)} premium-only · ${callYieldSummary.count} closed calls${callYieldSummary.premiumMissing ? ` (${callYieldSummary.premiumMissing} w/o premium)` : ''}`} accent="sky" icon={DollarSign} />
             </div>
 
             {/* ==================== PREMIUM & BUYBACKS ==================== */}
@@ -2998,6 +3013,46 @@ export default function TradingDashboard({ tradesData, updatedAt }) {
         </div>
       </div>
     </div>
+  );
+}
+
+const missingBenchmark = (key) => `Set [benchmarks] ${key} in config.toml`;
+const fmtPts = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)} pts`;
+
+// Short put yield plus the T-bill interest the cash collateral earns (or could earn).
+function PutPlusTbillCard({ putYield, tbill }) {
+  if (tbill == null) {
+    return <StatCard label="Short Put + T-bill" value="—" sublabel={missingBenchmark('tbill_return')} accent="amber" icon={TrendingUp} />;
+  }
+  return (
+    <StatCard
+      label="Short Put + T-bill"
+      value={putYield == null ? '—' : fmtPct(putYield + tbill)}
+      sublabel={`Short put yield + ${fmtPct(tbill)} T-bill interest on collateral (assumed)`}
+      accent="emerald"
+      icon={TrendingUp}
+    />
+  );
+}
+
+// Cboe PutWrite Index (PUT) return, compared with short put + T-bill: PUT also earns
+// T-bill interest on its collateral, so that's the like-for-like number.
+function PutBenchmarkCard({ putYield, tbill, index }) {
+  const label = 'Benchmark: PutWrite (PUT)';
+  if (index == null) {
+    return <StatCard label={label} value="—" sublabel={missingBenchmark('put_return')} accent="amber" icon={Trophy} />;
+  }
+  const yours = putYield == null ? null : putYield + (tbill ?? 0);
+  const spread = yours == null ? null : yours - index;
+  const versus = tbill == null ? 'short put yield (no T-bill set)' : 'short put + T-bill';
+  return (
+    <StatCard
+      label={label}
+      value={fmtPct(index)}
+      sublabel={`Cboe S&P 500 PutWrite, annualized · ${spread == null ? 'no short put yield yet' : `you ${fmtPts(spread)} (${versus})`}`}
+      accent={spread == null ? 'amber' : spread >= 0 ? 'emerald' : 'rose'}
+      icon={Trophy}
+    />
   );
 }
 
