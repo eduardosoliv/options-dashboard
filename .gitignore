@@ -17,6 +17,7 @@ web/dist/
 
 # Runtime data
 trades.json
+benchmarks.json
 web/public/trades.json
 
 # SDD scratch
