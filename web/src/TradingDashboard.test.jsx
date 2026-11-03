@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
-import TradingDashboard from './TradingDashboard.jsx';
+import TradingDashboard, { buildEquityCash } from './TradingDashboard.jsx';
 
 // recharts' ResponsiveContainer uses ResizeObserver, which jsdom doesn't provide.
 beforeAll(() => {
@@ -600,5 +600,171 @@ describe('TradingDashboard Yield vs Benchmarks edge cases', () => {
     const text = renderSection({ benchmarks: BENCH }, inPlayOnly);
     expect(text).toContain('Short Put + T-bill—');
     expect(text).toContain('PutWrite, annualized · no short put yield yet');
+  });
+});
+
+// Minimal closed-trade row for buildEquityCash; override per test.
+const eqTrade = (over) => ({
+  acquired: 'Jan 5, 26',
+  status: 'CLOSED',
+  ticker: 'AAA',
+  contracts: 1,
+  premium: null,
+  strike: 100,
+  closedOn: 'Jan 20, 26',
+  gainLoss: 0,
+  premiumCollected: null,
+  closeCost: null,
+  ...over,
+});
+
+describe('buildEquityCash cash flows', () => {
+  it('books premium on the open date and buybacks on the close date', () => {
+    const { series, markers, netCash } = buildEquityCash([
+      eqTrade({ premiumCollected: 400, closeCost: 150, gainLoss: 250 }),
+    ]);
+    expect(series).toEqual([
+      { date: 'Jan 5, 26', pnl: 0, cash: 400, premium: 400, buyback: 0, stock: [] },
+      { date: 'Jan 20, 26', pnl: 250, cash: 250, premium: 0, buyback: 150, stock: [] },
+    ]);
+    expect(markers).toEqual([]);
+    expect(netCash).toBe(250);
+  });
+
+  it('counts in-play premium as cash but not as realized P&L', () => {
+    const { series, netCash } = buildEquityCash([
+      eqTrade({ status: 'IN PLAY', premium: 300, closedOn: null, gainLoss: 120 }),
+    ]);
+    expect(series).toHaveLength(1);
+    expect(series[0]).toMatchObject({ pnl: 0, cash: 300 });
+    expect(netCash).toBe(300);
+  });
+
+  it('deducts capital deployed on assignment and adds capital received when called', () => {
+    const { series, netCash } = buildEquityCash([
+      // 2 × 80P assigned: -$16,000 of shares; premium 500, mark-to-market loss -1,200.
+      eqTrade({
+        status: 'ASSIGNED',
+        ticker: 'UBER',
+        contracts: 2,
+        strike: 80,
+        premiumCollected: 500,
+        gainLoss: -1200,
+        closedOn: 'Feb 12, 26',
+      }),
+      // 1 × 90C called: +$9,000 of shares; premium 200.
+      eqTrade({
+        status: 'CALLED',
+        ticker: 'UBER',
+        contracts: 1,
+        strike: 90,
+        premiumCollected: 200,
+        gainLoss: 200,
+        closedOn: 'Mar 20, 26',
+      }),
+    ]);
+    expect(series.map((d) => [d.date, d.pnl, d.cash])).toEqual([
+      ['Jan 5, 26', 0, 700],
+      ['Feb 12, 26', -1200, -15300],
+      ['Mar 20, 26', -1000, -6300],
+    ]);
+    expect(series[1].stock).toEqual([{ ticker: 'UBER', contracts: 2, amount: -16000 }]);
+    expect(netCash).toBe(-6300);
+  });
+});
+
+describe('buildEquityCash assignment / call-away markers', () => {
+  it('builds one marker per date and kind, summing contracts per ticker', () => {
+    const { markers } = buildEquityCash([
+      eqTrade({
+        status: 'ASSIGNED',
+        ticker: 'FIG',
+        contracts: 5,
+        strike: 30,
+        closedOn: 'Mar 20, 26',
+      }),
+      eqTrade({
+        status: 'ASSIGNED',
+        ticker: 'FIG',
+        contracts: 5,
+        strike: 25,
+        closedOn: 'Mar 20, 26',
+      }),
+      eqTrade({
+        status: 'ASSIGNED',
+        ticker: 'TTAN',
+        contracts: 2,
+        strike: 75,
+        closedOn: 'Mar 20, 26',
+      }),
+      eqTrade({
+        status: 'ASSIGNED',
+        ticker: 'NU',
+        contracts: 5,
+        strike: 13,
+        closedOn: 'May 15, 26',
+      }),
+    ]);
+    expect(markers).toEqual([
+      {
+        date: 'Mar 20, 26',
+        kind: 'assigned',
+        dx: 0,
+        lines: ['Assigned', 'FIG×10, TTAN×2', '-$42.5k'],
+      },
+      { date: 'May 15, 26', kind: 'assigned', dx: 0, lines: ['Assigned', 'NU×5', '-$6.5k'] },
+    ]);
+  });
+});
+
+describe('buildEquityCash same-day markers', () => {
+  it('splits a same-day assignment and call-away into two nudged markers', () => {
+    const { markers } = buildEquityCash([
+      eqTrade({
+        status: 'ASSIGNED',
+        ticker: 'SNPS',
+        contracts: 1,
+        strike: 400,
+        closedOn: 'Sep 18, 26',
+      }),
+      eqTrade({
+        status: 'CALLED',
+        ticker: 'VEEV',
+        contracts: 1,
+        strike: 250,
+        closedOn: 'Sep 18, 26',
+      }),
+      eqTrade({
+        status: 'CALLED',
+        ticker: 'VEEV',
+        contracts: 1,
+        strike: 260,
+        closedOn: 'Sep 18, 26',
+      }),
+    ]);
+    expect(markers).toEqual([
+      { date: 'Sep 18, 26', kind: 'assigned', dx: -3, lines: ['Assigned', 'SNPS×1', '-$40.0k'] },
+      { date: 'Sep 18, 26', kind: 'called', dx: 3, lines: ['Called', 'VEEV×2', '+$51.0k'] },
+    ]);
+  });
+});
+
+describe('buildEquityCash edge cases', () => {
+  it('skips rows without a parseable date and handles an empty book', () => {
+    expect(buildEquityCash([])).toEqual({ series: [], markers: [], netCash: 0 });
+    const { series } = buildEquityCash([
+      eqTrade({ acquired: null, closedOn: null, premiumCollected: 100 }),
+    ]);
+    expect(series).toEqual([]);
+  });
+});
+
+describe('Equity Curve header', () => {
+  it('shows labelled Realized P&L and Net cash totals on the Equity Curve', () => {
+    // Fixture cash: in-play premium 683.31 + 208.65, AMZN 435P assigned = -43,500.
+    const { container } = render(<TradingDashboard tradesData={TRADES} />);
+    const text = container.textContent;
+    expect(text).toContain('Realized P&L-$2,633.73');
+    expect(text).toContain('Net cash-$42,608.04');
   });
 });
