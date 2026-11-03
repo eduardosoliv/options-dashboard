@@ -114,7 +114,7 @@ export function buildEquityCash(TRADES) {
   return { series, markers, netCash: last ? last.cash : 0 };
 }
 
-export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) {
+export default function TradingDashboard({ tradesData, updatedAt, benchmarks, assignments }) {
   const TRADES = tradesData;
   const updatedLabel = updatedAt
     ? new Date(updatedAt).toLocaleString('en-US', {
@@ -1233,7 +1233,7 @@ export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) 
             </div>
 
             {/* ==================== ASSIGNED & CALLED ==================== */}
-            <AssignmentsSection trades={TRADES} />
+            <AssignmentsSection trades={TRADES} assignments={assignments} />
 
             {/* ==================== WINNERS & LOSERS ==================== */}
             <div>

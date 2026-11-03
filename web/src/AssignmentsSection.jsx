@@ -10,13 +10,11 @@ import {
   YAxis,
 } from 'recharts';
 import { buildLots, chartRows, coveredCalls, shortDate, summarize, TOTAL } from './assignments.js';
-import { HOLDINGS, PRICES } from './localData.js';
 
 /**
  * @typedef {import('./assignments.js').Lot} Lot
  * @typedef {import('./assignments.js').TradeLike} TradeLike
- * @typedef {import('./assignments.js').PriceHistory} PriceHistory
- * @typedef {import('./assignments.js').Holdings} Holdings
+ * @typedef {import('./data.js').Assignments} Assignments
  * @typedef {import('./assignments.js').LotSummary} LotSummary
  * @typedef {import('./assignments.js').CallsSummary} CallsSummary
  */
@@ -451,20 +449,13 @@ function useSelection() {
 }
 
 /**
- * @param {{ title: string, eyebrow: string, sample: boolean }} props
+ * @param {{ title: string, eyebrow: string }} props
  */
-function CardHeader({ title, eyebrow, sample }) {
+function CardHeader({ title, eyebrow }) {
   return (
     <div className="mb-4">
       <div className="text-xs font-mono uppercase tracking-wider text-zinc-500">{eyebrow}</div>
-      <div className="flex items-center gap-3 mt-1">
-        <span className="font-serif text-2xl font-semibold">{title}</span>
-        {sample && (
-          <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">
-            Sample prices
-          </span>
-        )}
-      </div>
+      <div className="font-serif text-2xl font-semibold mt-1">{title}</div>
     </div>
   );
 }
@@ -473,17 +464,17 @@ function CardHeader({ title, eyebrow, sample }) {
  * @param {{
  *   eyebrow: string, title: string, emptyText: string, refName: string, assumptions: string[],
  *   card: { chips: ChipData[], rows: Array<Record<string, number>>, sentence: string },
- *   lots: Lot[], missing: string[], sample: boolean,
+ *   lots: Lot[], missing: string[],
  * }} props
  */
-function LotCard({ eyebrow, title, emptyText, refName, assumptions, card, lots, missing, sample }) {
+function LotCard({ eyebrow, title, emptyText, refName, assumptions, card, lots, missing }) {
   const { selected, toggle } = useSelection();
   const missingNote = missing.length
     ? ` No price data for: ${[...new Set(missing)].join(', ')}.`
     : '';
   return (
     <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
-      <CardHeader title={title} eyebrow={eyebrow} sample={sample} />
+      <CardHeader title={title} eyebrow={eyebrow} />
       <Assumptions title={title} items={assumptions} inset={true} />
       {card.chips.length === 0 ? (
         <div className="py-10 text-center text-sm font-mono text-zinc-500">{emptyText}</div>
@@ -556,17 +547,35 @@ function Assumptions({ title, items, inset = false }) {
   );
 }
 
+/** Section title bar. */
+function SectionHeader() {
+  return (
+    <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
+      <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">
+        Section
+      </span>
+      <h2 className="font-serif text-xl sm:text-2xl font-semibold">
+        Assigned <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Called
+      </h2>
+      <span className="text-xs font-mono text-zinc-500">
+        — assigned shares vs the S&P 500; covered calls: premium vs upside given up
+      </span>
+    </div>
+  );
+}
+
 /**
- * @param {{ trades: TradeLike[], prices?: PriceHistory, holdings?: Holdings }} props
+ * Both cards, built from the trades plus assignments.json.
+ * @param {{ trades: TradeLike[], assignments: Assignments }} props
  */
-export default function AssignmentsSection({ trades, prices = PRICES, holdings = HOLDINGS }) {
+function AssignedAndCalled({ trades, assignments }) {
   const assigned = useMemo(
-    () => buildLots(trades, prices, 'assigned', holdings),
-    [trades, prices, holdings],
+    () => buildLots(trades, assignments, 'assigned', assignments),
+    [trades, assignments],
   );
   const called = useMemo(
-    () => buildLots(trades, prices, 'called', holdings),
-    [trades, prices, holdings],
+    () => buildLots(trades, assignments, 'called', assignments),
+    [trades, assignments],
   );
   const colors = useMemo(
     () => tickerColors([...assigned.lots, ...called.lots]),
@@ -574,23 +583,11 @@ export default function AssignmentsSection({ trades, prices = PRICES, holdings =
   );
   const assignedView = useMemo(() => assignedCard(assigned.lots, colors), [assigned, colors]);
   const calledView = useMemo(
-    () => calledCard(trades, called.lots, colors, prices.asOf),
-    [trades, called, colors, prices],
+    () => calledCard(trades, called.lots, colors, assignments.asOf),
+    [trades, called, colors, assignments],
   );
-  const sample = prices.sample === true;
   return (
     <>
-      <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">
-          Section
-        </span>
-        <h2 className="font-serif text-xl sm:text-2xl font-semibold">
-          Assigned <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Called
-        </h2>
-        <span className="text-xs font-mono text-zinc-500">
-          — assigned shares vs the S&P 500; covered calls: premium vs upside given up
-        </span>
-      </div>
       <Assumptions title="General" items={GENERAL_ASSUMPTIONS} />
       <LotCard
         eyebrow="$ gain / loss since assignment"
@@ -601,7 +598,6 @@ export default function AssignmentsSection({ trades, prices = PRICES, holdings =
         card={assignedView}
         lots={assigned.lots}
         missing={assigned.missing}
-        sample={sample}
       />
       <LotCard
         eyebrow="Premium kept vs upside given up"
@@ -612,8 +608,29 @@ export default function AssignmentsSection({ trades, prices = PRICES, holdings =
         card={calledView}
         lots={calledView.lots}
         missing={called.missing}
-        sample={sample}
       />
+    </>
+  );
+}
+
+/**
+ * The Assigned & Called section. `assignments` comes from assignments.json
+ * (the Sheet's AssignedCalled tab); without it the section explains how to
+ * set it up instead of drawing anything.
+ * @param {{ trades: TradeLike[], assignments?: Assignments | null }} props
+ */
+export default function AssignmentsSection({ trades, assignments = null }) {
+  return (
+    <>
+      <SectionHeader />
+      {assignments ? (
+        <AssignedAndCalled trades={trades} assignments={assignments} />
+      ) : (
+        <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6 text-sm font-mono text-zinc-500">
+          No assignments.json yet. Add an AssignedCalled tab to the Sheet (broker lots +
+          GOOGLEFINANCE price history) and run the fetcher to fill this section.
+        </div>
+      )}
     </>
   );
 }

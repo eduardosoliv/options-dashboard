@@ -22,3 +22,8 @@ output_path = "web/dist/trades.json"
 # period = "Jan 2025 - Oct 2026"   # label shown in the section header
 # put_return = 7.5                 # Cboe S&P 500 PutWrite Index (PUT)
 # tbill_return = 4.0               # T-bill rate on put collateral
+
+# Optional: the tab with broker lots + GOOGLEFINANCE price history for the dashboard's
+# "Assigned & Called" section (default "AssignedCalled"). `just fetch` writes it to
+# assignments.json next to trades.json; if the tab doesn't exist it only warns.
+# assignments_range = "AssignedCalled"

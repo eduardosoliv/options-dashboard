@@ -18,7 +18,6 @@
     "src/main.jsx",
     "src/data.js",
     "src/assignments.js",
-    "src/localData.js",
     "src/AssignmentsSection.jsx",
     "src/globals.d.ts"
   ],

@@ -6,7 +6,7 @@
 
 /**
  * @typedef {[string, number]} PricePoint ISO date (YYYY-MM-DD) and close.
- * @typedef {{ asOf: string, sample?: boolean, series: Record<string, PricePoint[]> }} PriceHistory
+ * @typedef {{ asOf: string, series: Record<string, PricePoint[]> }} PriceHistory
  * @typedef {{
  *   ticker: string,
  *   status: string,

@@ -4,11 +4,11 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-// The fetcher writes `dist/trades.json` (and `dist/benchmarks.json` when
-// configured), which the production build serves. The dev server only serves
+// The fetcher writes `dist/trades.json` (and `dist/benchmarks.json` /
+// `dist/assignments.json` when configured), which the production build serves. The dev server only serves
 // `public/`, so without this the app 404s on them during `just dev`. Serve the
 // fetcher's output from dist instead of duplicating the files.
-const FETCHER_FILES = ['trades.json', 'benchmarks.json'];
+const FETCHER_FILES = ['trades.json', 'benchmarks.json', 'assignments.json'];
 
 /**
  * @param {URL} [distDir] directory holding the fetcher's output (default: ./dist/)

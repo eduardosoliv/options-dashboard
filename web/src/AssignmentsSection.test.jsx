@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, within } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import AssignmentsSection, {
   ASSIGNED_ASSUMPTIONS,
@@ -36,7 +36,6 @@ beforeAll(() => {
 /** @type {import('./assignments.js').PriceHistory} */
 const PRICES = {
   asOf: '2026-01-15',
-  sample: true,
   series: {
     SPX: [
       ['2026-01-01', 1000],
@@ -116,15 +115,14 @@ const TRADES = [
 ];
 
 describe('AssignmentsSection', () => {
-  it('renders both cards with a chip per lot and the sample badge', () => {
-    const { container, getAllByText } = render(
-      <AssignmentsSection trades={TRADES} prices={PRICES} holdings={HOLDINGS} />,
+  it('renders both cards with a box per lot', () => {
+    const { container } = render(
+      <AssignmentsSection trades={TRADES} assignments={{ ...PRICES, ...HOLDINGS }} />,
     );
     const text = container.textContent;
     expect(text).toContain('Assigned & Called');
     expect(text).toContain('Assigned Shares');
     expect(text).toContain('Covered Calls');
-    expect(getAllByText('Sample prices')).toHaveLength(2);
     // 200 AAA on a $95 basis, sold Jan 9 at 108 → +$2,600; S&P flat by Jan 9.
     expect(text).toContain(
       'AAA×2 $100basis $95.00Jan 1, 26sold Jan 9AAA+$2,600+13.7%S&P 500+$0+0.0%',
@@ -153,7 +151,7 @@ describe('AssignmentsSection', () => {
 describe('AssignmentsSection interaction', () => {
   it('starts with only Total selected and lets several boxes be selected', () => {
     const { getAllByRole, getByText, queryByText } = render(
-      <AssignmentsSection trades={TRADES} prices={PRICES} holdings={HOLDINGS} />,
+      <AssignmentsSection trades={TRADES} assignments={{ ...PRICES, ...HOLDINGS }} />,
     );
     // Assigned card: Total, then the AAA lot.
     const [total, lot] = getAllByRole('button');
@@ -172,7 +170,7 @@ describe('AssignmentsSection interaction', () => {
 
   it('does not change the selection on hover', () => {
     const { getAllByRole, getByText } = render(
-      <AssignmentsSection trades={TRADES} prices={PRICES} holdings={HOLDINGS} />,
+      <AssignmentsSection trades={TRADES} assignments={{ ...PRICES, ...HOLDINGS }} />,
     );
     const [total, lot] = getAllByRole('button');
     if (!(total && lot)) throw new Error('missing boxes');
@@ -184,11 +182,25 @@ describe('AssignmentsSection interaction', () => {
 
   it('shows empty states when nothing was assigned or called', () => {
     const { container } = render(
-      <AssignmentsSection trades={[]} prices={PRICES} holdings={HOLDINGS} />,
+      <AssignmentsSection trades={[]} assignments={{ ...PRICES, ...HOLDINGS }} />,
     );
     expect(container.textContent).toContain('No assigned shares yet.');
     expect(container.textContent).toContain('No covered calls yet.');
-    expect(within(container).queryAllByText('Sample prices')).toHaveLength(2);
+  });
+
+  it('lists lots under "No price data" when the S&P 500 series is missing', () => {
+    const { SPX: _dropped, ...series } = PRICES.series;
+    const { container } = render(
+      <AssignmentsSection trades={TRADES} assignments={{ ...PRICES, ...HOLDINGS, series }} />,
+    );
+    expect(container.textContent).toContain('No assigned shares yet.');
+    expect(container.textContent).toContain('No price data for: AAA, BBB.');
+  });
+
+  it('explains how to set up the section when assignments.json is missing', () => {
+    const { container } = render(<AssignmentsSection trades={TRADES} assignments={null} />);
+    expect(container.textContent).toContain('No assignments.json yet');
+    expect(container.querySelector('button')).toBeNull();
   });
 });
 
@@ -253,7 +265,7 @@ describe('AssignmentsSection total sentences', () => {
   it('leaves out the deployed / premium breakdown without Fidelity lots', () => {
     const empty = { asOf: '2026-01-15', held: [], sold: [] };
     const { container } = render(
-      <AssignmentsSection trades={TRADES} prices={PRICES} holdings={empty} />,
+      <AssignmentsSection trades={TRADES} assignments={{ ...PRICES, ...empty }} />,
     );
     expect(container.textContent).toContain('Total: $2,000 ahead of the S&P 500; $20,000 basis. ');
     expect(container.textContent).toContain('ahead of the S&P 500');
@@ -279,7 +291,7 @@ describe('AssignmentsSection strikes and colors', () => {
 describe('AssignmentsSection assumptions', () => {
   it('puts general assumptions at the top and each chart assumptions inside its card', () => {
     const { container } = render(
-      <AssignmentsSection trades={TRADES} prices={PRICES} holdings={HOLDINGS} />,
+      <AssignmentsSection trades={TRADES} assignments={{ ...PRICES, ...HOLDINGS }} />,
     );
     const text = container.textContent;
     const at = (/** @type {string} */ s) => text.indexOf(s);

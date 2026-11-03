@@ -1,27 +1,28 @@
 import { useEffect, useState } from 'react';
-import { loadBenchmarks, loadTrades } from './data.js';
+import { loadAssignments, loadBenchmarks, loadTrades } from './data.js';
 import TradingDashboard from './TradingDashboard.jsx';
 
 const REFRESH_MS = 10 * 60 * 1000;
 
 /**
- * Optional benchmarks.json, refreshed with the trades; keeps the last good
- * value on a failed fetch, like the trades.
- * @returns {import('./data.js').Benchmarks | null}
+ * An optional fetcher file (benchmarks.json, assignments.json), refreshed with
+ * the trades; keeps the last good value on a failed fetch, like the trades.
+ * @template T
+ * @param {() => Promise<T | null>} loader
+ * @param {string} name for console errors
+ * @returns {T | null}
  */
-function useBenchmarks() {
-  const [benchmarks, setBenchmarks] = useState(
-    /** @type {import('./data.js').Benchmarks | null} */ (null),
-  );
+function useOptional(loader, name) {
+  const [value, setValue] = useState(/** @type {T | null} */ (null));
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
-        const next = await loadBenchmarks();
-        if (active) setBenchmarks(next);
+        const next = await loader();
+        if (active) setValue(next);
       } catch (e) {
         // biome-ignore lint/suspicious/noConsole: surface load failures to the browser console
-        console.error('benchmarks load failed', e);
+        console.error(`${name} load failed`, e);
       }
     };
     load();
@@ -30,8 +31,8 @@ function useBenchmarks() {
       active = false;
       clearInterval(id);
     };
-  }, []);
-  return benchmarks;
+  }, [loader, name]);
+  return value;
 }
 
 export default function App() {
@@ -43,7 +44,8 @@ export default function App() {
     }),
   );
   const [error, setError] = useState(/** @type {unknown} */ (null));
-  const benchmarks = useBenchmarks();
+  const benchmarks = useOptional(loadBenchmarks, 'benchmarks');
+  const assignments = useOptional(loadAssignments, 'assignments');
 
   useEffect(() => {
     let active = true;
@@ -90,6 +92,7 @@ export default function App() {
       tradesData={state.trades}
       updatedAt={state.updatedAt}
       benchmarks={benchmarks}
+      assignments={assignments}
       key={state.sig}
     />
   );

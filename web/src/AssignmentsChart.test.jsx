@@ -97,7 +97,7 @@ const HOLDINGS = {
 };
 
 const renderSection = () =>
-  render(<AssignmentsSection trades={TRADES} prices={PRICES} holdings={HOLDINGS} />);
+  render(<AssignmentsSection trades={TRADES} assignments={{ ...PRICES, ...HOLDINGS }} />);
 
 /**
  * Drawn lines in one card's chart as `stroke|dashed`.
