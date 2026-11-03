@@ -2,7 +2,7 @@
 // Biome for correctness; excluded from strict tsc type-checking.
 import { Activity, AlertTriangle, ArrowUpDown, DollarSign, Search, Target, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, ErrorBar, LabelList, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, ErrorBar, LabelList, Legend, Line, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 
 // Helper functions
@@ -49,6 +49,69 @@ const parseDate = (s) => {
 const isWin = (t) => t.gainLoss > 0;
 const isLoss = (t) => t.gainLoss < 0;
 const isClosed = (t) => t.status !== 'IN PLAY';
+
+// Realized P&L and actual cash flow on one daily timeline.
+// Cash: +premium on the open date, -buyback on the close date, and the stock leg:
+// ASSIGNED = capital deployed (shares bought at strike), CALLED = capital received
+// (shares sold at strike). Stock events are also collected for the dotted markers.
+export function buildEquityCash(TRADES) {
+  const days = new Map();
+  const day = (s) => {
+    const d = parseDate(s);
+    if (!d) return null;
+    if (!days.has(s)) days.set(s, { date: s, dateObj: d, pnl: 0, cash: 0, premium: 0, buyback: 0, stock: [] });
+    return days.get(s);
+  };
+  TRADES.forEach(t => {
+    const open = day(t.acquired);
+    const prem = isClosed(t) ? t.premiumCollected : t.premium;
+    if (open && prem) { open.cash += prem; open.premium += prem; }
+    if (!isClosed(t)) return;
+    const close = day(t.closedOn);
+    if (!close) return;
+    close.pnl += t.gainLoss || 0;
+    if (t.closeCost) { close.cash -= t.closeCost; close.buyback += t.closeCost; }
+    const shares = (t.strike || 0) * 100 * (t.contracts || 0);
+    if (t.status === 'ASSIGNED' && shares) { close.cash -= shares; close.stock.push({ ticker: t.ticker, contracts: t.contracts, amount: -shares }); }
+    if (t.status === 'CALLED' && shares) { close.cash += shares; close.stock.push({ ticker: t.ticker, contracts: t.contracts, amount: shares }); }
+  });
+  let runPnl = 0, runCash = 0;
+  const series = [...days.values()].sort((a, b) => a.dateObj - b.dateObj).map(d => {
+    runPnl += d.pnl;
+    runCash += d.cash;
+    return {
+      date: d.date,
+      pnl: Math.round(runPnl * 100) / 100,
+      cash: Math.round(runCash * 100) / 100,
+      premium: d.premium,
+      buyback: d.buyback,
+      stock: d.stock,
+    };
+  });
+  // One marker per date and kind (assigned / called); same-ticker contracts sum, e.g. "FIG×10, TTAN×2"
+  const markers = [];
+  series.filter(d => d.stock.length).forEach(d => {
+    const kinds = [
+      { kind: 'assigned', verb: 'Assigned', list: d.stock.filter(e => e.amount < 0) },
+      { kind: 'called', verb: 'Called', list: d.stock.filter(e => e.amount > 0) },
+    ].filter(k => k.list.length);
+    kinds.forEach(k => {
+      const counts = {};
+      k.list.forEach(e => { counts[e.ticker] = (counts[e.ticker] || 0) + (e.contracts || 0); });
+      const tickers = Object.entries(counts).map(([t, n]) => `${t}×${n}`).join(', ');
+      const total = k.list.reduce((sum, e) => sum + e.amount, 0);
+      markers.push({
+        date: d.date,
+        kind: k.kind,
+        // Same-day assigned + called get nudged apart so both lines stay visible
+        dx: kinds.length > 1 ? (k.kind === 'assigned' ? -3 : 3) : 0,
+        lines: [k.verb, tickers, `${total >= 0 ? '+' : '-'}$${(Math.abs(total) / 1000).toFixed(1)}k`],
+      });
+    });
+  });
+  const last = series[series.length - 1];
+  return { series, markers, netCash: last ? last.cash : 0 };
+}
 
 export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) {
   const TRADES = tradesData;
@@ -553,22 +616,7 @@ export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) 
     { name: 'Lost', value: stats.losses, fill: '#fb7185' },
   ], [stats]);
 
-  const cumulativePnL = useMemo(() => {
-    const closed = TRADES.filter(isClosed)
-      .filter(t => t.closedOn)
-      .map(t => ({ ...t, dateObj: parseDate(t.closedOn) }))
-      .filter(t => t.dateObj)
-      .sort((a, b) => a.dateObj - b.dateObj);
-    let running = 0;
-    return closed.map(t => {
-      running += t.gainLoss;
-      return {
-        date: t.closedOn,
-        pnl: Math.round(running * 100) / 100,
-        ticker: t.ticker,
-      };
-    });
-  }, []);
+  const equityCash = useMemo(() => buildEquityCash(TRADES), []);
 
   // Open positions count + notional risk over time, reconstructed from acquired/closed dates
   const inPlayOverTime = useMemo(() => {
@@ -1016,44 +1064,13 @@ export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) 
               );
             })()}
 
-            {/* ==================== EQUITY & EXPOSURE ==================== */}
+            {/* ==================== EXPOSURE & P&L ==================== */}
             <div>
               <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
-                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Equity <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Exposure</h2>
-                <span className="text-xs font-mono text-zinc-500">— realized P&L and open risk over time</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Exposure <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> P&L</h2>
+                <span className="text-xs font-mono text-zinc-500">— open risk and realized P&L over time</span>
               </div>
-            </div>
-
-            {/* Cumulative P&L sneak peek */}
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-xs font-mono uppercase tracking-wider text-zinc-500">Cumulative Realized P&L</div>
-                  <div className="font-serif text-2xl font-semibold mt-1">Equity Curve</div>
-                </div>
-                <div className={`text-2xl font-mono font-semibold num ${stats.totalGain >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {fmtCurrency(stats.totalGain)}
-                </div>
-              </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={cumulativePnL}>
-                  <defs>
-                    <linearGradient id="pnlGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="#27272a" strokeDasharray="2 2" />
-                  <XAxis dataKey="date" stroke="#71717a" fontSize={10} />
-                  <YAxis stroke="#71717a" fontSize={10} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip
-                    {...TOOLTIP_STYLE}
-                    formatter={(v) => [fmtCurrency(v), 'P&L']}
-                  />
-                  <Area type="monotone" dataKey="pnl" stroke="#f59e0b" strokeWidth={2} fill="url(#pnlGrad)" />
-                </AreaChart>
-              </ResponsiveContainer>
             </div>
 
             {/* In play positions over time */}
@@ -1102,6 +1119,116 @@ export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) 
                   <Line yAxisId="notional" type="stepAfter" dataKey="notional" stroke="#fb7185" strokeWidth={2} dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>
+            </div>
+
+            {/* Cumulative P&L sneak peek */}
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-xs font-mono uppercase tracking-wider text-zinc-500">Cumulative Realized P&L</div>
+                  <div className="font-serif text-2xl font-semibold mt-1">Equity Curve</div>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-baseline justify-end gap-3" style={{ color: '#f59e0b' }}>
+                    <span className="text-base font-mono uppercase tracking-wider">Realized P&L</span>
+                    <span className="text-2xl font-mono font-semibold num">{fmtCurrency(stats.totalGain)}</span>
+                  </div>
+                  <div className="flex items-baseline justify-end gap-3" style={{ color: '#a78bfa' }}>
+                    <span className="text-xs font-mono uppercase tracking-wider">Net cash</span>
+                    <span className="text-sm font-mono num">{fmtCurrency(equityCash.netCash)}</span>
+                  </div>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={456}>
+                <ComposedChart data={equityCash.series} margin={{ top: 154, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="pnlGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#27272a" strokeDasharray="2 2" />
+                  <XAxis dataKey="date" stroke="#71717a" fontSize={10} />
+                  <YAxis stroke="#71717a" fontSize={10} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || !payload.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div style={TOOLTIP_STYLE.contentStyle} className="p-3">
+                          <div style={TOOLTIP_STYLE.labelStyle}>{label}</div>
+                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#f59e0b' }}>Realized P&L: {fmtCurrency(d.pnl)}</div>
+                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#a78bfa' }}>Net cash: {fmtCurrency(d.cash)}</div>
+                          {d.premium > 0 && <div style={TOOLTIP_STYLE.itemStyle}>+ premium {fmtCurrency(d.premium)}</div>}
+                          {d.buyback > 0 && <div style={TOOLTIP_STYLE.itemStyle}>− buybacks {fmtCurrency(d.buyback)}</div>}
+                          {d.stock.map((e, i) => (
+                            <div key={i} style={{ ...TOOLTIP_STYLE.itemStyle, color: e.amount < 0 ? '#38bdf8' : '#f472b6' }}>
+                              {e.amount < 0 ? `− capital deployed (${e.ticker} assigned)` : `+ capital received (${e.ticker} called)`} {fmtCurrency(Math.abs(e.amount))}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}
+                    formatter={(value) => (value === 'pnl' ? 'Realized P&L' : 'Net cash (premium − buybacks − capital deployed + capital received)')}
+                  />
+                  {(() => {
+                    // Greedy row packing above the plot: each box takes the lowest row where it
+                    // doesn't overlap an earlier box. Indexed by marker so re-renders overwrite in order.
+                    const placed = [];
+                    const ROW_H = 48, LINE_H = 12;
+                    return equityCash.markers.map((m, i) => (
+                      <ReferenceLine
+                        key={`${m.date}-${m.kind}`}
+                        x={m.date}
+                        stroke="none"
+                        label={({ viewBox }) => {
+                          const color = m.kind === 'assigned' ? '#38bdf8' : '#f472b6';
+                          const x = viewBox.x + m.dx;
+                          const w = Math.max(...m.lines.map(l => l.length)) * 6.2 + 12;
+                          const h = m.lines.length * LINE_H + 6;
+                          let cx = m.dx < 0 ? x - w / 2 - 2 : m.dx > 0 ? x + w / 2 + 2 : x;
+                          cx = Math.max(w / 2, cx);
+                          const overlaps = (row) => placed.slice(0, i).some(p => p.row === row && Math.abs(p.cx - cx) < (p.w + w) / 2 + 6);
+                          let row = 0;
+                          while (row < 2 && overlaps(row)) row++;
+                          placed[i] = { row, cx, w };
+                          const bottom = viewBox.y - 8 - row * ROW_H;
+                          const top = bottom - h;
+                          return (
+                            <g>
+                              <line x1={x} x2={x} y1={bottom} y2={viewBox.y + viewBox.height} stroke={color} strokeOpacity={0.6} strokeDasharray="3 3" />
+                              <rect x={cx - w / 2} y={top} width={w} height={h} rx={4} fill="#18181b" stroke={color} strokeOpacity={0.5} />
+                              {m.lines.map((l, j) => (
+                                <text
+                                  key={l}
+                                  x={cx}
+                                  y={top + 1 + LINE_H * (j + 1)}
+                                  textAnchor="middle"
+                                  fill={color}
+                                  fontSize={10}
+                                  fontWeight={j === m.lines.length - 1 ? 600 : 400}
+                                  fontFamily="JetBrains Mono, monospace"
+                                >
+                                  {l}
+                                </text>
+                              ))}
+                            </g>
+                          );
+                        }}
+                      />
+                    ));
+                  })()}
+                  <Area type="monotone" dataKey="pnl" stroke="#f59e0b" strokeWidth={2} fill="url(#pnlGrad)" />
+                  <Line type="stepAfter" dataKey="cash" stroke="#a78bfa" strokeWidth={2} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+              <div className="mt-2 text-[11px] font-mono text-zinc-500">
+                Dotted lines mark stock moving through the account: <span className="text-sky-400">assigned</span> = capital deployed buying shares at strike, <span className="text-pink-400">called</span> = capital received selling shares at strike. Net cash dips there even though those dollars are now held as shares.
+              </div>
             </div>
 
             {/* ==================== WINNERS & LOSERS ==================== */}
