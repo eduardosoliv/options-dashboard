@@ -22,6 +22,9 @@ web/                Vite + React 19 + Tailwind v4 app
   src/App.jsx              data loader: fetch + 10-min refresh + remount-on-change
   src/TradingDashboard.jsx VENDORED dashboard (see rules below) — takes `tradesData` + `updatedAt` (+ optional `benchmarks`) props
   src/data.js             trades.json + benchmarks.json fetch, djb2 content hash
+  src/assignments.js       Assigned & Called: lots from trades + Fidelity lots, $ vs S&P 500, chart rows
+  src/AssignmentsSection.jsx  Assigned & Called section (boxes + multi-select line chart)
+  src/localData.js         optional loader for src/local/ (git-ignored personal data; missing → empty)
   src/*.test.*            vitest (loader unit test + jsdom render smoke test)
   trades-example.json      sample dataset for previewing without Google (see README)
 config-example.toml template for `config.toml` (git-ignored): spreadsheet_id, sheet_range, output_path, optional [benchmarks]
@@ -129,6 +132,10 @@ configured".
   don't clear state on error.
 - **OAuth scope is exactly** `https://www.googleapis.com/auth/spreadsheets.readonly`
   — never add `drive.*` scopes.
+- **Personal position data stays out of git:** `web/src/local/` (`holdings.js` =
+  Fidelity lots, `assignmentsSample.js` = price history) is gitignored — the repo
+  is public. Code must build and test without it (`localData.js` falls back to
+  empty); test fixtures use made-up tickers and numbers, never real ones.
 - **Secrets stay out of git:** `fetcher/credentials.json`, `fetcher/token.json`,
   and `config.toml` are gitignored. Never commit them, `.venv/`, `node_modules/`,
   `dist/`, or `trades.json`. Check `git status` before committing.

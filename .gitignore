@@ -25,3 +25,6 @@ web/public/trades.json
 
 # macOS
 .DS_Store
+
+# Personal position data for Assigned & Called (Fidelity lots, price history)
+web/src/local/

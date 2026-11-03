@@ -13,6 +13,14 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/App.jsx", "src/main.jsx", "src/data.js", "src/globals.d.ts"],
+  "include": [
+    "src/App.jsx",
+    "src/main.jsx",
+    "src/data.js",
+    "src/assignments.js",
+    "src/localData.js",
+    "src/AssignmentsSection.jsx",
+    "src/globals.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }
