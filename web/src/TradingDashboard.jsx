@@ -1064,13 +1064,61 @@ export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) 
               );
             })()}
 
-            {/* ==================== EQUITY & EXPOSURE ==================== */}
+            {/* ==================== EXPOSURE & P&L ==================== */}
             <div>
               <div className="flex items-baseline gap-3 mb-3 border-b border-zinc-800 pb-2">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 px-2 py-0.5 border border-amber-500/40 rounded">Section</span>
-                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Equity <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Exposure</h2>
-                <span className="text-xs font-mono text-zinc-500">— realized P&L and open risk over time</span>
+                <h2 className="font-serif text-xl sm:text-2xl font-semibold">Exposure <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> P&L</h2>
+                <span className="text-xs font-mono text-zinc-500">— open risk and realized P&L over time</span>
               </div>
+            </div>
+
+            {/* In play positions over time */}
+            <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-xs font-mono uppercase tracking-wider text-zinc-500">Open Positions & Notional Risk Over Time</div>
+                  <div className="font-serif text-2xl font-semibold mt-1">In Play</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-mono font-semibold num text-sky-400">{stats.inPlay}</div>
+                  <div className="text-xs font-mono num text-rose-400">{fmtCurrencyWhole(stats.riskInPlay)}</div>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={280}>
+                <ComposedChart data={inPlayOverTime}>
+                  <defs>
+                    <linearGradient id="inPlayGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#27272a" strokeDasharray="2 2" />
+                  <XAxis dataKey="date" stroke="#71717a" fontSize={10} />
+                  <YAxis yAxisId="count" stroke="#38bdf8" fontSize={10} allowDecimals={false} />
+                  <YAxis yAxisId="notional" orientation="right" stroke="#fb7185" fontSize={10} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || !payload.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div style={TOOLTIP_STYLE.contentStyle}>
+                          <div style={TOOLTIP_STYLE.labelStyle}>{label}</div>
+                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#38bdf8' }}>Open Positions: {d.count}</div>
+                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#fb7185' }}>Notional Risk: {fmtCurrencyWhole(d.notional)}</div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Legend
+                    wrapperStyle={{ fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}
+                    formatter={(value) => value === 'count' ? 'Open Positions' : 'Notional Risk'}
+                  />
+                  <Area yAxisId="count" type="stepAfter" dataKey="count" stroke="#38bdf8" strokeWidth={2} fill="url(#inPlayGrad)" />
+                  <Line yAxisId="notional" type="stepAfter" dataKey="notional" stroke="#fb7185" strokeWidth={2} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
 
             {/* Cumulative P&L sneak peek */}
@@ -1181,54 +1229,6 @@ export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) 
               <div className="mt-2 text-[11px] font-mono text-zinc-500">
                 Dotted lines mark stock moving through the account: <span className="text-sky-400">assigned</span> = capital deployed buying shares at strike, <span className="text-pink-400">called</span> = capital received selling shares at strike. Net cash dips there even though those dollars are now held as shares.
               </div>
-            </div>
-
-            {/* In play positions over time */}
-            <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-xs font-mono uppercase tracking-wider text-zinc-500">Open Positions & Notional Risk Over Time</div>
-                  <div className="font-serif text-2xl font-semibold mt-1">In Play</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-mono font-semibold num text-sky-400">{stats.inPlay}</div>
-                  <div className="text-xs font-mono num text-rose-400">{fmtCurrencyWhole(stats.riskInPlay)}</div>
-                </div>
-              </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart data={inPlayOverTime}>
-                  <defs>
-                    <linearGradient id="inPlayGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="#27272a" strokeDasharray="2 2" />
-                  <XAxis dataKey="date" stroke="#71717a" fontSize={10} />
-                  <YAxis yAxisId="count" stroke="#38bdf8" fontSize={10} allowDecimals={false} />
-                  <YAxis yAxisId="notional" orientation="right" stroke="#fb7185" fontSize={10} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip
-                    {...TOOLTIP_STYLE}
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload || !payload.length) return null;
-                      const d = payload[0].payload;
-                      return (
-                        <div style={TOOLTIP_STYLE.contentStyle}>
-                          <div style={TOOLTIP_STYLE.labelStyle}>{label}</div>
-                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#38bdf8' }}>Open Positions: {d.count}</div>
-                          <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#fb7185' }}>Notional Risk: {fmtCurrencyWhole(d.notional)}</div>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}
-                    formatter={(value) => value === 'count' ? 'Open Positions' : 'Notional Risk'}
-                  />
-                  <Area yAxisId="count" type="stepAfter" dataKey="count" stroke="#38bdf8" strokeWidth={2} fill="url(#inPlayGrad)" />
-                  <Line yAxisId="notional" type="stepAfter" dataKey="notional" stroke="#fb7185" strokeWidth={2} dot={false} />
-                </ComposedChart>
-              </ResponsiveContainer>
             </div>
 
             {/* ==================== WINNERS & LOSERS ==================== */}

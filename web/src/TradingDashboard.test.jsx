@@ -149,7 +149,7 @@ describe('TradingDashboard', () => {
     expect(container.textContent).toContain('Overview');
     expect(container.textContent).toContain('Win Rate');
     // Overview is split into sections.
-    for (const section of ['Key Metrics', 'Equity & Exposure', 'Winners & Losers']) {
+    for (const section of ['Key Metrics', 'Exposure & P&L', 'Winners & Losers']) {
       expect(container.textContent).toContain(section);
     }
     // ...and fixture data flows through (GOOGL is a closed trade shown on Overview).
@@ -766,5 +766,21 @@ describe('Equity Curve header', () => {
     const text = container.textContent;
     expect(text).toContain('Realized P&L-$2,633.73');
     expect(text).toContain('Net cash-$42,608.04');
+  });
+});
+
+describe('Exposure & P&L section', () => {
+  it('shows In Play before the Equity Curve, ahead of Winners & Losers', () => {
+    const { container } = render(<TradingDashboard tradesData={TRADES} />);
+    const text = container.textContent;
+    expect(text).not.toContain('Equity & Exposure');
+    const order = [
+      'Exposure & P&L— open risk and realized P&L over time',
+      'Open Positions & Notional Risk Over Time',
+      'Cumulative Realized P&L',
+      'Winners & Losers',
+    ].map((label) => text.indexOf(label));
+    expect(order.every((p) => p >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 });
