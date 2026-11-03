@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { buildLots, chartRows, shortDate, summarize, TOTAL } from './assignments.js';
+import { buildLots, chartRows, coveredCalls, shortDate, summarize, TOTAL } from './assignments.js';
 import { HOLDINGS, PRICES } from './localData.js';
 
 /**
@@ -18,7 +18,7 @@ import { HOLDINGS, PRICES } from './localData.js';
  * @typedef {import('./assignments.js').PriceHistory} PriceHistory
  * @typedef {import('./assignments.js').Holdings} Holdings
  * @typedef {import('./assignments.js').LotSummary} LotSummary
- * @typedef {'assigned' | 'called'} Kind
+ * @typedef {import('./assignments.js').CallsSummary} CallsSummary
  */
 
 // Categorical slots (dataviz reference palette, dark steps), validated against
@@ -70,95 +70,68 @@ export function tickerColors(lots) {
 }
 
 /**
- * Per-card wording for the total and the note under the chart.
- * @typedef {{
- *   ahead: (gap: string) => string,
- *   behind: (gap: string) => string,
- *   capital: string,
- *   breakdown: (atStrike: string, premium: string) => string,
- *   lotRow: string | null,
- *   spxRow: string,
- * }} HeroWording lotRow: label for the shares row (null = the ticker / 'All lots').
- */
-
-/** @type {Record<Kind, HeroWording>} */
-export const HERO_WORDING = {
-  assigned: {
-    ahead: (gap) => `${gap} ahead of the S&P 500`,
-    behind: (gap) => `${gap} behind the S&P 500`,
-    capital: 'basis',
-    breakdown: (atStrike, premium) => `${atStrike} deployed − ${premium} premium`,
-    lotRow: null,
-    spxRow: 'S&P 500',
-  },
-  called: {
-    ahead: (gap) => `holding would have beaten the S&P 500 by ${gap}`,
-    behind: (gap) => `the S&P 500 beat holding by ${gap}`,
-    capital: 'proceeds',
-    breakdown: (atStrike, premium) => `${atStrike} at strike + ${premium} premium`,
-    lotRow: 'If kept',
-    spxRow: 'If in S&P 500',
-  },
-};
-
-/**
- * One sentence on the total: the gap to the S&P 500 and, with Fidelity lots,
- * where the capital came from.
+ * One sentence on the assigned total: the gap to the S&P 500 and, with
+ * Fidelity lots, where the capital came from.
  * @param {LotSummary} summary
- * @param {HeroWording} wording
  */
-export function totalSentence(summary, wording) {
-  const gap = (summary.excess >= 0 ? wording.ahead : wording.behind)(usd(summary.excess));
-  const capital = `${usd(summary.capital)} ${wording.capital}`;
+export function totalSentence(summary) {
+  const gap = `${usd(summary.excess)} ${summary.excess >= 0 ? 'ahead of' : 'behind'} the S&P 500`;
   const premium = summary.capital - summary.atStrike;
   const breakdown = summary.fromFidelity
-    ? ` = ${wording.breakdown(usd(summary.atStrike), usd(premium))}`
+    ? ` = ${usd(summary.atStrike)} deployed − ${usd(premium)} premium`
     : '';
-  return `Total: ${gap}; ${capital}${breakdown}.`;
+  return `Total: ${gap}; ${usd(summary.capital)} basis${breakdown}.`;
 }
 
 /**
- * Green when the number is good for you: a gain on assigned shares, or the
- * stock falling after it was called away (positive there = upside given up).
- * @param {Kind} kind
- * @param {number} n
+ * One sentence on covered calls overall.
+ * @param {CallsSummary} s
  */
-export const toneClass = (kind, n) =>
-  (kind === 'assigned' ? n >= 0 : n <= 0) ? 'text-emerald-400' : 'text-rose-400';
+export const callsSentence = (s) =>
+  `Covered calls: ${usd(s.premiumKept)} premium kept − ${usd(s.upsideGivenUp)} upside given up = ${fmtUsd(s.net)}; open calls carry ${usd(s.openPremium)} premium not yet earned.`;
 
 /**
- * One row of a box: a label, the $ amount and its % of the capital, laid out
- * on the box's shared 3-column grid so amounts line up.
- * @param {{ label: string, amount: number, capital: number, tone: string }} props
+ * Green for a gain, red for a loss.
+ * @param {number} n
  */
-function ChipFigure({ label, amount, capital, tone }) {
+export const toneClass = (n) => (n >= 0 ? 'text-emerald-400' : 'text-rose-400');
+
+/**
+ * @typedef {{ label: string, amount: number, pct: number | null, tone: string, lineBefore?: boolean }} ChipRow
+ * @typedef {{
+ *   id: string, color: string, title: string, strike: string | null,
+ *   refLabel: string, refValue: string, date: string, sold: string | null, rows: ChipRow[],
+ * }} ChipData
+ */
+
+/**
+ * One row of a box: a label, the $ amount and (optionally) a %, laid out on the
+ * box's shared 3-column grid so amounts line up.
+ * @param {{ row: ChipRow }} props
+ */
+function ChipFigure({ row }) {
   return (
     <>
+      {row.lineBefore && <div className="col-span-3 border-t border-zinc-800" />}
       <span className="text-[10px] uppercase tracking-wider whitespace-nowrap text-zinc-500">
-        {label}
+        {row.label}
       </span>
-      <span className={`text-base font-semibold text-right num ${tone}`}>{fmtUsd(amount)}</span>
-      <span className={`text-base text-right num ${tone}`}>{fmtPct((amount / capital) * 100)}</span>
+      <span className={`text-base font-semibold text-right num ${row.tone}`}>
+        {fmtUsd(row.amount)}
+      </span>
+      <span className={`text-base text-right num ${row.tone}`}>
+        {row.pct === null ? '' : fmtPct(row.pct)}
+      </span>
     </>
   );
 }
 
 /**
- * @typedef {{
- *   id: string, kind: Kind, color: string, title: string, strike: string | null,
- *   refLabel: string, refValue: string,
- *   date: string, sold: string | null, row: string, stock: number, spx: number, capital: number,
- * }} ChipData
- */
-
-/**
- * A box in the grid (a lot or the total): identity, reference and date on top;
- * the shares' result (row named by ticker) next to the same dollars in the
- * S&P 500 underneath.
+ * A box in the grid (a lot or the total): identity, reference and date on top,
+ * then its rows.
  * @param {{ chip: ChipData, active: boolean, onToggle: (id: string) => void }} props
  */
 function Chip({ chip, active, onToggle }) {
-  const tone = toneClass(chip.kind, chip.stock);
   return (
     <button
       type="button"
@@ -185,73 +158,136 @@ function Chip({ chip, active, onToggle }) {
         </span>
       </div>
       <div className="mt-4 grid grid-cols-[1fr_auto_auto] items-baseline gap-x-4 gap-y-2">
-        <ChipFigure label={chip.row} amount={chip.stock} capital={chip.capital} tone={tone} />
-        <div className="col-span-3 border-t border-zinc-800" />
-        <ChipFigure
-          label={HERO_WORDING[chip.kind].spxRow}
-          amount={chip.spx}
-          capital={chip.capital}
-          tone="text-zinc-300"
-        />
+        {chip.rows.map((row) => (
+          <ChipFigure key={row.label} row={row} />
+        ))}
       </div>
     </button>
   );
 }
 
-/**
- * @param {Lot} lot
- * @param {string} color
- * @returns {ChipData}
- */
-function lotChip(lot, color) {
-  const ref = { assigned: 'basis', called: 'sold at' }[lot.kind];
-  return {
-    id: lot.id,
-    kind: lot.kind,
-    color,
-    title: `${lot.ticker}×${lot.contracts}`,
-    strike: lot.strikes.length ? lot.strikes.map(fmtStrike).join('/') : null,
-    row: HERO_WORDING[lot.kind].lotRow ?? lot.ticker,
-    refLabel: lot.refPrice === null ? 'from' : ref,
-    refValue: `$${lot.costPrice.toFixed(2)}`,
-    date: lot.label,
-    sold: lot.endedByCall ? shortDate(lot.endDate) : null,
-    stock: lot.last.stock,
-    spx: lot.last.spx,
-    capital: lot.capital,
-  };
-}
+/** @param {Lot} lot */
+const lotStrike = (lot) => (lot.strikes.length ? lot.strikes.map(fmtStrike).join('/') : null);
 
 /**
- * @param {LotSummary} summary
- * @param {Lot[]} lots
- * @param {Kind} kind
- * @returns {ChipData}
+ * @param {string} first ISO
+ * @param {string} last ISO
  */
-function totalChip(summary, lots, kind) {
-  const first = lots[0]?.date ?? '';
-  const last = lots.at(-1)?.date ?? '';
-  return {
+const dateRange = (first, last) =>
+  first === last ? shortDate(first) : `${shortDate(first)} – ${shortDate(last)}`;
+
+/**
+ * The shares' row (named by ticker) and the same dollars in the S&P 500.
+ * @param {string} label
+ * @param {number} stock
+ * @param {number} spx
+ * @param {number} capital
+ * @returns {ChipRow[]}
+ */
+const vsSpxRows = (label, stock, spx, capital) => [
+  { label, amount: stock, pct: (stock / capital) * 100, tone: toneClass(stock) },
+  {
+    label: 'S&P 500',
+    amount: spx,
+    pct: (spx / capital) * 100,
+    tone: 'text-zinc-300',
+    lineBefore: true,
+  },
+];
+
+/**
+ * Premium, upside given up and their net for covered calls.
+ * @param {number} premium
+ * @param {number} net
+ * @returns {ChipRow[]}
+ */
+const callRows = (premium, net) => [
+  { label: 'Premium', amount: premium, pct: null, tone: toneClass(premium) },
+  { label: 'Upside given up', amount: net - premium, pct: null, tone: toneClass(net - premium) },
+  { label: 'Net', amount: net, pct: null, tone: toneClass(net), lineBefore: true },
+];
+
+/**
+ * Assigned card: Total + one box per lot, chart rows, and the note sentence.
+ * @param {Lot[]} lots
+ * @param {Map<string, string>} colors
+ */
+function assignedCard(lots, colors) {
+  const summary = summarize(lots);
+  const lotChips = lots.map(
+    (lot) =>
+      /** @type {ChipData} */ ({
+        id: lot.id,
+        color: colors.get(lot.ticker) ?? SPX_GRAY,
+        title: `${lot.ticker}×${lot.contracts}`,
+        strike: lotStrike(lot),
+        refLabel: lot.refPrice === null ? 'from' : 'basis',
+        refValue: `$${lot.costPrice.toFixed(2)}`,
+        date: lot.label,
+        sold: lot.endedByCall ? shortDate(lot.endDate) : null,
+        rows: vsSpxRows(lot.ticker, lot.last.stock, lot.last.spx, lot.capital),
+      }),
+  );
+  if (!summary) return { chips: lotChips, rows: chartRows(lots), sentence: '' };
+  /** @type {ChipData} */
+  const total = {
     id: TOTAL,
-    kind,
     color: TOTAL_COLOR,
     title: 'Total',
     strike: null,
-    row: HERO_WORDING[kind].lotRow ?? 'All lots',
-    refLabel: HERO_WORDING[kind].capital,
+    refLabel: 'basis',
     refValue: usd(summary.capital),
-    date: first === last ? shortDate(first) : `${shortDate(first)} – ${shortDate(last)}`,
+    date: dateRange(lots[0]?.date ?? '', lots.at(-1)?.date ?? ''),
     sold: null,
-    stock: summary.stock,
-    spx: summary.spx,
-    capital: summary.capital,
+    rows: vsSpxRows('All lots', summary.stock, summary.spx, summary.capital),
   };
+  return { chips: [total, ...lotChips], rows: chartRows(lots), sentence: totalSentence(summary) };
 }
 
 /**
- * @param {{ chips: ChipData[], rows: Array<Record<string, number>>, shown: Set<string>, t: number }} props
+ * Covered-calls card: "All covered calls" + one box per called-away lot.
+ * @param {TradeLike[]} trades
+ * @param {Lot[]} called
+ * @param {Map<string, string>} colors
+ * @param {string} asOf
  */
-function TooltipBody({ chips, rows, shown, t }) {
+function calledCard(trades, called, colors, asOf) {
+  const { lots, summary, baseline } = coveredCalls(trades, called, asOf);
+  const lotChips = lots.map(
+    (lot) =>
+      /** @type {ChipData} */ ({
+        id: lot.id,
+        color: colors.get(lot.ticker) ?? SPX_GRAY,
+        title: `${lot.ticker}×${lot.contracts}`,
+        strike: lotStrike(lot),
+        refLabel: lot.refPrice === null ? 'from' : 'sold at',
+        refValue: `$${lot.costPrice.toFixed(2)}`,
+        date: lot.label,
+        sold: null,
+        rows: callRows(lot.last.spx, lot.last.stock),
+      }),
+  );
+  const rows = chartRows(lots, baseline);
+  if (!summary) return { lots, chips: lotChips, rows, sentence: '' };
+  /** @type {ChipData} */
+  const total = {
+    id: TOTAL,
+    color: TOTAL_COLOR,
+    title: 'All covered calls',
+    strike: null,
+    refLabel: `${summary.calls} done`,
+    refValue: '',
+    date: dateRange(summary.first, summary.last),
+    sold: null,
+    rows: callRows(summary.premiumKept, summary.net),
+  };
+  return { lots, chips: [total, ...lotChips], rows, sentence: callsSentence(summary) };
+}
+
+/**
+ * @param {{ chips: ChipData[], rows: Array<Record<string, number>>, shown: Set<string>, t: number, refName: string }} props
+ */
+function TooltipBody({ chips, rows, shown, t, refName }) {
   const row = rows.find((r) => r.t === t);
   if (!row) return null;
   const listed = chips.filter((c) => shown.has(c.id) && row[c.id] !== undefined);
@@ -262,9 +298,14 @@ function TooltipBody({ chips, rows, shown, t }) {
       {listed.map((c) => (
         <div key={c.id} className="flex items-center gap-2 text-zinc-300">
           <span className="inline-block w-2.5 h-[3px] rounded" style={{ background: c.color }} />
-          <span className="w-16 text-zinc-100">{c.title}</span>
-          <span className="num w-20 text-right">{fmtUsd(row[c.id] ?? 0)}</span>
-          <span className="num text-zinc-500">S&P 500 {fmtUsd(row[`${c.id}|spx`] ?? 0)}</span>
+          <span className="text-zinc-100">
+            {c.title}
+            {c.strike && ` ${c.strike}`}
+          </span>
+          <span className="num ml-auto pl-3">{fmtUsd(row[c.id] ?? 0)}</span>
+          <span className="num text-zinc-500">
+            {refName} {fmtUsd(row[`${c.id}|spx`] ?? 0)}
+          </span>
         </div>
       ))}
     </div>
@@ -302,8 +343,8 @@ const endDot =
   };
 
 /**
- * Solid line for the shares (or total) and its dashed S&P 500 line, drawn only
- * for selected series so the chart stays readable.
+ * Solid line (result) and its dashed reference line (S&P 500 or premium),
+ * drawn only for selected series so the chart stays readable.
  * @param {{ id: string, color: string, shown: Set<string>, isTotal: boolean, dot: ReturnType<typeof endDot> | false }} props
  */
 function seriesLines({ id, color, shown, isTotal, dot }) {
@@ -335,10 +376,9 @@ function seriesLines({ id, color, shown, isTotal, dot }) {
 }
 
 /**
- * @param {{ lots: Lot[], chips: ChipData[], shown: Set<string> }} props
+ * @param {{ lots: Lot[], chips: ChipData[], rows: Array<Record<string, number>>, shown: Set<string>, refName: string }} props
  */
-function LotChart({ lots, chips, shown }) {
-  const rows = useMemo(() => chartRows(lots), [lots]);
+function LotChart({ lots, chips, rows, shown, refName }) {
   const colorOf = new Map(chips.map((c) => [c.id, c.color]));
   const usedColors = new Set();
   return (
@@ -366,7 +406,13 @@ function LotChart({ lots, chips, shown }) {
             cursor={{ stroke: '#52525b' }}
             content={({ active, label }) =>
               active ? (
-                <TooltipBody chips={chips} rows={rows} shown={shown} t={Number(label)} />
+                <TooltipBody
+                  chips={chips}
+                  rows={rows}
+                  shown={shown}
+                  t={Number(label)}
+                  refName={refName}
+                />
               ) : null
             }
           />
@@ -425,37 +471,39 @@ function CardHeader({ title, eyebrow, sample }) {
 
 /**
  * @param {{
- *   kind: Kind, eyebrow: string, title: string, note: string, emptyText: string,
- *   lots: Lot[], missing: string[], colors: Map<string, string>, sample: boolean,
+ *   eyebrow: string, title: string, note: string, emptyText: string, refName: string,
+ *   card: { chips: ChipData[], rows: Array<Record<string, number>>, sentence: string },
+ *   lots: Lot[], missing: string[], sample: boolean,
  * }} props
  */
-function LotCard({ kind, eyebrow, title, note, emptyText, lots, missing, colors, sample }) {
+function LotCard({ eyebrow, title, note, emptyText, refName, card, lots, missing, sample }) {
   const { selected, toggle } = useSelection();
-  const summary = useMemo(() => summarize(lots), [lots]);
-  const chips = useMemo(() => {
-    const lotChips = lots.map((l) => lotChip(l, colors.get(l.ticker) ?? SPX_GRAY));
-    return summary ? [totalChip(summary, lots, kind), ...lotChips] : lotChips;
-  }, [lots, colors, summary, kind]);
   const missingNote = missing.length
     ? ` No price data for: ${[...new Set(missing)].join(', ')}.`
     : '';
   return (
     <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
       <CardHeader title={title} eyebrow={eyebrow} sample={sample} />
-      {lots.length === 0 ? (
+      {card.chips.length === 0 ? (
         <div className="py-10 text-center text-sm font-mono text-zinc-500">{emptyText}</div>
       ) : (
         <>
           <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
-            {chips.map((chip) => (
+            {card.chips.map((chip) => (
               <Chip key={chip.id} chip={chip} active={selected.has(chip.id)} onToggle={toggle} />
             ))}
           </div>
-          <LotChart lots={lots} chips={chips} shown={selected} />
+          <LotChart
+            lots={lots}
+            chips={card.chips}
+            rows={card.rows}
+            shown={selected}
+            refName={refName}
+          />
         </>
       )}
       <div className="mt-2 text-[11px] font-mono text-zinc-500">
-        {summary && `${totalSentence(summary, HERO_WORDING[kind])} `}
+        {card.sentence && `${card.sentence} `}
         {note}
         {missingNote}
       </div>
@@ -479,6 +527,11 @@ export default function AssignmentsSection({ trades, prices = PRICES, holdings =
     () => tickerColors([...assigned.lots, ...called.lots]),
     [assigned, called],
   );
+  const assignedView = useMemo(() => assignedCard(assigned.lots, colors), [assigned, colors]);
+  const calledView = useMemo(
+    () => calledCard(trades, called.lots, colors, prices.asOf),
+    [trades, called, colors, prices],
+  );
   const sample = prices.sample === true;
   return (
     <>
@@ -490,29 +543,29 @@ export default function AssignmentsSection({ trades, prices = PRICES, holdings =
           Assigned <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>&amp;</span> Called
         </h2>
         <span className="text-xs font-mono text-zinc-500">
-          — how the shares did afterwards vs the S&P 500
+          — assigned shares vs the S&P 500; covered calls: premium vs upside given up
         </span>
       </div>
       <LotCard
-        kind="assigned"
         eyebrow="$ gain / loss since assignment"
         title="Assigned Shares"
         emptyText="No assigned shares yet."
-        note="Each line is a lot's $ gain or loss vs Fidelity's cost basis (strike − premium), from its assignment day; it can start below $0 when the stock was under the basis that day. White = all lots added up. Dashed = the same dollars put in the S&P 500 on the same days. Hollow end = shares since sold. Only selected lines are drawn: click boxes to add or remove them (Total by default)."
+        refName="S&P 500"
+        note="Each line is a lot's $ gain or loss vs its cost basis (strike − premium), from its assignment day; it can start below $0 when the stock was under the basis that day. White = all lots added up. Dashed = the same dollars put in the S&P 500 on the same days. Hollow end = shares since sold. Only selected lines are drawn: click boxes to add or remove them (Total by default)."
+        card={assignedView}
         lots={assigned.lots}
         missing={assigned.missing}
-        colors={colors}
         sample={sample}
       />
       <LotCard
-        kind="called"
-        eyebrow="$ since called away: keeping the shares vs the S&P 500"
-        title="Called Away"
-        emptyText="No shares called away yet."
-        note="“If kept” = what the shares gained after you sold them, vs what you received (Fidelity proceeds = strike + premium); above $0 is upside given up. “If in S&P 500” = what those proceeds would have made in the S&P 500 from the sale day. White = all lots added up; dashed = the S&P 500 alternative. Only selected lines are drawn."
-        lots={called.lots}
+        eyebrow="Premium kept vs upside given up"
+        title="Covered Calls"
+        emptyText="No covered calls yet."
+        refName="premium"
+        note="Every covered call earns premium; only called-away ones give up upside: (price now − strike) × shares. Premium kept = all finished covered calls net of buybacks, plus called-away premium. Solid = net (premium − upside given up), dashed = premium. Only selected lines are drawn: click boxes to add or remove them (All covered calls by default)."
+        card={calledView}
+        lots={calledView.lots}
         missing={called.missing}
-        colors={colors}
         sample={sample}
       />
     </>

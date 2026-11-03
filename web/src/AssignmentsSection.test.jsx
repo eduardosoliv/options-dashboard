@@ -2,13 +2,14 @@
 import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import AssignmentsSection, {
+  callsSentence,
   fmtPct,
   fmtStrike,
   fmtUsd,
   fmtUsdAxis,
-  HERO_WORDING,
   tickerColors,
   toneClass,
+  totalSentence,
 } from './AssignmentsSection.jsx';
 
 // Unmount between tests so screen-wide queries only see the current render.
@@ -73,11 +74,33 @@ const TRADES = [
   },
   {
     ticker: 'AAA',
+    type: 'Covered Call',
     status: 'CALLED',
     contracts: 2,
     strike: 105,
     closedOn: 'Jan 9, 26',
     exitPrice: 108,
+    premiumCollected: 100,
+  },
+  // A covered call that expired / was bought back: premium kept, no upside lost.
+  {
+    ticker: 'CCC',
+    type: 'Covered Call',
+    status: 'CLOSED',
+    contracts: 1,
+    strike: 40,
+    closedOn: 'Jan 5, 26',
+    gainLoss: 400,
+  },
+  // An open covered call: premium not yet earned.
+  {
+    ticker: 'CCC',
+    type: 'Covered Call',
+    status: 'IN PLAY',
+    contracts: 1,
+    strike: 45,
+    closedOn: null,
+    premium: 250,
   },
   {
     ticker: 'BBB',
@@ -97,26 +120,28 @@ describe('AssignmentsSection', () => {
     const text = container.textContent;
     expect(text).toContain('Assigned & Called');
     expect(text).toContain('Assigned Shares');
-    expect(text).toContain('Called Away');
+    expect(text).toContain('Covered Calls');
     expect(getAllByText('Sample prices')).toHaveLength(2);
     // 200 AAA on a $95 basis, sold Jan 9 at 108 → +$2,600; S&P flat by Jan 9.
     expect(text).toContain(
       'AAA×2 $100basis $95.00Jan 1, 26sold Jan 9AAA+$2,600+13.7%S&P 500+$0+0.0%',
     );
-    // Sold for $106 → 120 on Jan 15 = +$2,800 given up; $21,200 in the S&P at +10%.
     expect(text).toContain(
-      'AAA×2 $105sold at $106.00Jan 9, 26If kept+$2,800+13.2%If in S&P 500+$2,120+10.0%',
+      // 200 shares, 105 strike, now 120: $3,000 upside given up against $100 premium.
+      // biome-ignore lint/security/noSecrets: expected box text, not a secret
+      'AAA×2 $105sold at $106.00Jan 9, 26Premium+$100Upside given up−$3,000Net−$2,900',
     );
     expect(text).toContain('No price data for: BBB.');
     expect(text).toContain(
       'Total: $2,600 ahead of the S&P 500; $19,000 basis = $20,000 deployed − $1,000 premium.',
     );
     expect(text).toContain(
-      'Total: holding would have beaten the S&P 500 by $680; $21,200 proceeds = $21,000 at strike + $200 premium.',
+      'Covered calls: $500 premium kept − $3,000 upside given up = −$2,500; open calls carry $250 premium not yet earned.',
     );
-    // Called: +$2,800 given up vs +$2,120 for the proceeds in the S&P.
+    // All covered calls: $400 kept on CCC + $100 called premium − $3,000 upside.
     expect(text).toContain(
-      'Totalproceeds $21,200Jan 9If kept+$2,800+13.2%If in S&P 500+$2,120+10.0%AAA×2',
+      // biome-ignore lint/security/noSecrets: expected box text, not a secret
+      'All covered calls2 done Jan 5 – Jan 9Premium+$500Upside given up−$3,000Net−$2,500AAA×2',
     );
     expect(text).toContain('Totalbasis $19,000Jan 1All lots+$2,600+13.7%S&P 500+$0+0.0%AAA×2');
   });
@@ -159,7 +184,7 @@ describe('AssignmentsSection interaction', () => {
       <AssignmentsSection trades={[]} prices={PRICES} holdings={HOLDINGS} />,
     );
     expect(container.textContent).toContain('No assigned shares yet.');
-    expect(container.textContent).toContain('No shares called away yet.');
+    expect(container.textContent).toContain('No covered calls yet.');
     expect(within(container).queryAllByText('Sample prices')).toHaveLength(2);
   });
 });
@@ -192,10 +217,34 @@ describe('AssignmentsSection helpers', () => {
   });
 });
 
-describe('AssignmentsSection hero wording', () => {
-  it('says behind when the shares trail the S&P', () => {
-    expect(HERO_WORDING.assigned.behind('$500')).toBe('$500 behind the S&P 500');
-    expect(HERO_WORDING.called.behind('$500')).toBe('the S&P 500 beat holding by $500');
+describe('AssignmentsSection total sentences', () => {
+  it('says behind when the shares trail the S&P 500', () => {
+    const summary = {
+      stock: 100,
+      spx: 600,
+      excess: -500,
+      capital: 9500,
+      atStrike: 10_000,
+      fromFidelity: true,
+    };
+    expect(totalSentence(summary)).toBe(
+      'Total: $500 behind the S&P 500; $9,500 basis = $10,000 deployed − $500 premium.',
+    );
+  });
+
+  it('sums up covered calls, including a positive net', () => {
+    const summary = {
+      premiumKept: 900,
+      upsideGivenUp: 300,
+      net: 600,
+      openPremium: 50,
+      calls: 3,
+      first: '',
+      last: '',
+    };
+    expect(callsSentence(summary)).toBe(
+      'Covered calls: $900 premium kept − $300 upside given up = +$600; open calls carry $50 premium not yet earned.',
+    );
   });
 
   it('leaves out the deployed / premium breakdown without Fidelity lots', () => {
@@ -210,14 +259,9 @@ describe('AssignmentsSection hero wording', () => {
 });
 
 describe('AssignmentsSection chip colors', () => {
-  it('colors assigned gains green and losses red', () => {
-    expect(toneClass('assigned', 2185)).toBe('text-emerald-400');
-    expect(toneClass('assigned', -2185)).toBe('text-rose-400');
-  });
-
-  it('colors upside given up on called shares red', () => {
-    expect(toneClass('called', 9844)).toBe('text-rose-400');
-    expect(toneClass('called', -500)).toBe('text-emerald-400');
+  it('colors gains green and losses red', () => {
+    expect(toneClass(2185)).toBe('text-emerald-400');
+    expect(toneClass(-2185)).toBe('text-rose-400');
   });
 });
 

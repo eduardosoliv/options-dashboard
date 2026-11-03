@@ -3,6 +3,7 @@ import {
   buildLots,
   chartRows,
   closeOn,
+  coveredCalls,
   daysBetween,
   shortDate,
   summarize,
@@ -398,5 +399,59 @@ describe('buildLots Fidelity matching rules', () => {
     const trades = [row({ strike: 25 }), row({ strike: 30 })];
     const { lots } = buildLots(trades, PRICES, 'assigned', holdings);
     expect(lots.map((l) => l.refPrice)).toEqual([24.9, 24.5]);
+  });
+});
+
+describe('coveredCalls', () => {
+  // Called at 105 on Jan 8 (2 contracts, $150 premium); AAA is 107 that day, 114 by Jan 15.
+  const called = row({
+    status: 'CALLED',
+    type: 'Covered Call',
+    contracts: 2,
+    strike: 105,
+    closedOn: 'Jan 8, 26',
+    exitPrice: 107,
+    premiumCollected: 150,
+  });
+  const trades = [
+    called,
+    { ...row({}), type: 'Covered Call', status: 'CLOSED', closedOn: 'Jan 3, 26', gainLoss: 300 },
+    { ...row({}), type: 'Covered Call', status: 'EXPIRED', closedOn: 'Jan 10, 26', gainLoss: 50 },
+    { ...row({}), type: 'Covered Call', status: 'IN PLAY', closedOn: null, premium: 80 },
+    { ...row({}), type: 'Short Put', status: 'CLOSED', closedOn: 'Jan 4, 26', gainLoss: 999 },
+  ];
+  const view = () => coveredCalls(trades, buildLots(trades, PRICES, 'called').lots, PRICES.asOf);
+
+  it('turns each called lot into premium − upside given up, with the premium as its reference', () => {
+    const [lot] = view().lots;
+    // Call day: 150 − (107 − 105) × 200 = −250. Jan 15: 150 − (114 − 105) × 200 = −1,650.
+    expect(lot?.points[0]).toMatchObject({ date: '2026-01-08', stock: -250, spx: 150 });
+    expect(lot?.last).toMatchObject({ date: '2026-01-15', stock: -1650, spx: 150 });
+  });
+
+  it('totals premium kept on every finished covered call against upside given up', () => {
+    expect(view().summary).toEqual({
+      premiumKept: 300 + 50 + 150,
+      upsideGivenUp: 1800,
+      net: 500 - 1800,
+      openPremium: 80,
+      calls: 3,
+      first: '2026-01-03',
+      last: '2026-01-10',
+    });
+  });
+
+  it('adds the running premium kept on other calls to the total line from the first call', () => {
+    const { lots, baseline } = view();
+    const byDate = Object.fromEntries(
+      chartRows(lots, baseline).map((r) => [new Date(r.t ?? 0).toISOString().slice(0, 10), r]),
+    );
+    expect(byDate['2026-01-03']).toMatchObject({ total: 300, 'total|spx': 300 });
+    expect(byDate['2026-01-08']).toMatchObject({ total: 300 - 250, 'total|spx': 300 + 150 });
+    expect(byDate['2026-01-15']).toMatchObject({ total: 350 - 1650, 'total|spx': 350 + 150 });
+  });
+
+  it('returns no summary without covered calls', () => {
+    expect(coveredCalls([row({})], [], PRICES.asOf).summary).toBeNull();
   });
 });

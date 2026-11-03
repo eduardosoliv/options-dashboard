@@ -15,6 +15,10 @@
  *   closedOn: string | null,
  *   exitPrice?: number | null,
  *   premiumCollected?: number | null,
+ *   type?: string,
+ *   acquired?: string | null,
+ *   gainLoss?: number | null,
+ *   premium?: number | null,
  * }} TradeLike
  * @typedef {{ ticker: string, acquired: string, quantity: number, costBasis: number }} HeldLot
  * @typedef {HeldLot & { sold: string, proceeds: number }} SoldLot
@@ -29,6 +33,7 @@
  *   label: string,
  *   contracts: number,
  *   strikes: number[],
+ *   premium: number | null,
  *   costPrice: number,
  *   shares: number,
  *   capital: number,
@@ -389,15 +394,25 @@ function valueOn(lot, t) {
 }
 
 /**
+ * Amount added to both total keys at every row, on its own dates (e.g. premium
+ * kept on covered calls that were never called away).
+ * @typedef {{ times: number[], at: (t: number) => number }} Baseline
+ */
+
+/** @type {Baseline} */
+const NO_BASELINE = { times: [], at: () => 0 };
+
+/**
  * One row per sampled date for recharts: `{ t, [lot.id]: stock $, [`${lot.id}|spx`]: S&P $,
  * total, 'total|spx' }`. A lot's own keys only cover its holding window; the
- * total adds up every lot started by then.
+ * total adds up every lot started by then, plus the baseline.
  * @param {Lot[]} lots
+ * @param {Baseline} [baseline]
  * @returns {Array<Record<string, number>>}
  */
-export function chartRows(lots) {
+export function chartRows(lots, baseline = NO_BASELINE) {
   /** @type {Map<number, Record<string, number>>} */
-  const rows = new Map();
+  const rows = new Map(baseline.times.map((t) => [t, { t }]));
   for (const lot of lots) {
     for (const p of lot.points) {
       const row = rows.get(p.t) ?? { t: p.t };
@@ -409,8 +424,74 @@ export function chartRows(lots) {
   const sorted = [...rows.values()].sort((a, b) => (a.t ?? 0) - (b.t ?? 0));
   for (const row of sorted) {
     const values = lots.map((l) => valueOn(l, row.t ?? 0)).filter((v) => v !== null);
-    row[TOTAL] = values.reduce((s, v) => s + v.stock, 0);
-    row[`${TOTAL}|spx`] = values.reduce((s, v) => s + v.spx, 0);
+    const base = baseline.at(row.t ?? 0);
+    row[TOTAL] = base + values.reduce((s, v) => s + v.stock, 0);
+    row[`${TOTAL}|spx`] = base + values.reduce((s, v) => s + v.spx, 0);
   }
   return sorted;
+}
+
+/**
+ * @typedef {{ premiumKept: number, upsideGivenUp: number, net: number, openPremium: number, calls: number, first: string, last: string }} CallsSummary
+ *   premiumKept: net premium on every covered call that's done (closed/expired
+ *   net of buybacks, plus called-away premium); upsideGivenUp: (price − strike)
+ *   × shares on called-away lots today; openPremium: premium on open calls.
+ */
+
+/**
+ * Covered calls judged on their own terms: premium collected vs upside given
+ * up. Each called-away lot becomes a line of its net (premium − (price −
+ * strike) × shares) with the premium as its dashed reference; the total adds
+ * the premium kept on every other finished covered call as of each date.
+ * @param {TradeLike[]} trades
+ * @param {Lot[]} called lots from buildLots(..., 'called')
+ * @param {string} asOf
+ * @returns {{ lots: Lot[], summary: CallsSummary | null, baseline: Baseline }}
+ */
+export function coveredCalls(trades, called, asOf) {
+  const lots = called.map((lot) => {
+    const premium = lot.premium ?? 0;
+    const strike = lot.strikes[0] ?? 0;
+    // lot.points measure the shares vs costPrice; shift to vs the strike.
+    const net = (/** @type {LotPoint} */ p) =>
+      premium - (p.stock + (lot.costPrice - strike) * lot.shares);
+    const points = lot.points.map((p) => ({ ...p, stock: net(p), spx: premium }));
+    return { ...lot, points, last: points.at(-1) ?? lot.last };
+  });
+  const cc = trades.filter((t) => t.type === 'Covered Call');
+  const done = cc
+    .filter(
+      (t) => (t.status === 'CLOSED' || t.status === 'EXPIRED') && typeof t.gainLoss === 'number',
+    )
+    .map((t) => ({ date: tradeDateToIso(t.closedOn) ?? asOf, amount: t.gainLoss ?? 0 }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!(done.length || lots.length)) return { lots, summary: null, baseline: NO_BASELINE };
+  const lotPremium = lots.reduce((s, l) => s + (l.premium ?? 0), 0);
+  const premiumKept = done.reduce((s, d) => s + d.amount, 0) + lotPremium;
+  const net = lots.reduce((s, l) => s + l.last.stock, 0) + premiumKept - lotPremium;
+  const first = [done[0]?.date, lots[0]?.date].filter((d) => d !== undefined).sort()[0] ?? asOf;
+  const at = (/** @type {number} */ t) =>
+    done.reduce((s, d) => (toMs(d.date) <= t ? s + d.amount : s), 0);
+  const times = [...new Set([...weeklyGrid(first, asOf), asOf, ...done.map((d) => d.date)])].map(
+    toMs,
+  );
+  return {
+    lots,
+    summary: {
+      premiumKept,
+      upsideGivenUp: premiumKept - net,
+      net,
+      openPremium: cc
+        .filter((t) => t.status === 'IN PLAY')
+        .reduce((s, t) => s + (t.premium ?? 0), 0),
+      calls: done.length + lots.length,
+      first,
+      last:
+        [done.at(-1)?.date, lots.at(-1)?.date]
+          .filter((d) => d !== undefined)
+          .sort()
+          .at(-1) ?? asOf,
+    },
+    baseline: { times, at },
+  };
 }
