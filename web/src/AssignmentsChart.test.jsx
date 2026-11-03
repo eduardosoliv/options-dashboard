@@ -108,9 +108,11 @@ const lines = (card) =>
     (p) => `${p.getAttribute('stroke')}|${p.getAttribute('stroke-dasharray') ? 'dashed' : 'solid'}`,
   );
 
-/** The two cards (Assigned, Called) and their boxes. */
+/** The two chart cards (Assigned, Covered Calls) and their boxes; skips Assumptions. */
 function cards() {
-  const all = [...document.querySelectorAll('.rounded-xl')];
+  const all = [...document.querySelectorAll('.rounded-xl')].filter((c) =>
+    c.querySelector('button'),
+  );
   return all.map((card) => ({ card, boxes: [...card.querySelectorAll('button')] }));
 }
 

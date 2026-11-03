@@ -471,12 +471,12 @@ function CardHeader({ title, eyebrow, sample }) {
 
 /**
  * @param {{
- *   eyebrow: string, title: string, note: string, emptyText: string, refName: string,
+ *   eyebrow: string, title: string, emptyText: string, refName: string, assumptions: string[],
  *   card: { chips: ChipData[], rows: Array<Record<string, number>>, sentence: string },
  *   lots: Lot[], missing: string[], sample: boolean,
  * }} props
  */
-function LotCard({ eyebrow, title, note, emptyText, refName, card, lots, missing, sample }) {
+function LotCard({ eyebrow, title, emptyText, refName, assumptions, card, lots, missing, sample }) {
   const { selected, toggle } = useSelection();
   const missingNote = missing.length
     ? ` No price data for: ${[...new Set(missing)].join(', ')}.`
@@ -484,6 +484,7 @@ function LotCard({ eyebrow, title, note, emptyText, refName, card, lots, missing
   return (
     <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6">
       <CardHeader title={title} eyebrow={eyebrow} sample={sample} />
+      <Assumptions title={title} items={assumptions} inset={true} />
       {card.chips.length === 0 ? (
         <div className="py-10 text-center text-sm font-mono text-zinc-500">{emptyText}</div>
       ) : (
@@ -503,10 +504,54 @@ function LotCard({ eyebrow, title, note, emptyText, refName, card, lots, missing
         </>
       )}
       <div className="mt-2 text-[11px] font-mono text-zinc-500">
-        {card.sentence && `${card.sentence} `}
-        {note}
+        {card.sentence}
         {missingNote}
       </div>
+    </div>
+  );
+}
+
+// What the charts assume and how their numbers are built: general first, then per chart.
+export const GENERAL_ASSUMPTIONS = [
+  'Dividends are not included: share and S&P 500 figures are price-only, and dividends forgone on called-away shares are not counted.',
+  'Prices are daily closes, sampled weekly; the last point is the latest close.',
+  'Each strike is its own lot. A second lot of the same ticker shares its color and has dots on its line.',
+  'Only selected lines are drawn: click boxes to add or remove them. Total is selected by default.',
+];
+
+export const ASSIGNED_ASSUMPTIONS = [
+  'Capital deployed = strike × 100 × contracts; cost basis = capital deployed − premium.',
+  "A lot's gain / loss = (price − cost basis) × shares, from its assignment day. It can start below $0 when the stock was under the basis that day.",
+  'S&P 500 (dashed) = the same cost basis put in the S&P 500 on the assignment day.',
+  'Shares sold since end at the sale (hollow ring) and keep their final gain in the total.',
+];
+
+export const CALLS_ASSUMPTIONS = [
+  'Every covered call earns premium; only called-away ones give up upside.',
+  'Premium kept = all finished covered calls (closed or expired, net of buybacks) plus called-away premium. Open calls count once they finish.',
+  'Upside given up = (price now − strike) × shares on called-away lots; it moves with the stock price.',
+  'Net (solid) = premium − upside given up; premium is dashed.',
+];
+
+/**
+ * General assumptions are their own card; a chart's sit inside its card as an
+ * inset panel above the boxes.
+ * @param {{ title: string, items: string[], inset?: boolean }} props
+ */
+function Assumptions({ title, items, inset = false }) {
+  const frame = inset
+    ? 'rounded-lg border border-zinc-800 bg-zinc-950/40 p-4 mb-5'
+    : 'bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 sm:p-6';
+  return (
+    <div className={frame}>
+      <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-3">
+        Assumptions · {title}
+      </div>
+      <ul className="text-xs text-zinc-400 font-mono space-y-1 leading-relaxed">
+        {items.map((item) => (
+          <li key={item}>· {item}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -546,12 +591,13 @@ export default function AssignmentsSection({ trades, prices = PRICES, holdings =
           — assigned shares vs the S&P 500; covered calls: premium vs upside given up
         </span>
       </div>
+      <Assumptions title="General" items={GENERAL_ASSUMPTIONS} />
       <LotCard
         eyebrow="$ gain / loss since assignment"
         title="Assigned Shares"
         emptyText="No assigned shares yet."
         refName="S&P 500"
-        note="Each line is a lot's $ gain or loss vs its cost basis (strike − premium), from its assignment day; it can start below $0 when the stock was under the basis that day. White = all lots added up. Dashed = the same dollars put in the S&P 500 on the same days. Hollow end = shares since sold. Only selected lines are drawn: click boxes to add or remove them (Total by default)."
+        assumptions={ASSIGNED_ASSUMPTIONS}
         card={assignedView}
         lots={assigned.lots}
         missing={assigned.missing}
@@ -562,7 +608,7 @@ export default function AssignmentsSection({ trades, prices = PRICES, holdings =
         title="Covered Calls"
         emptyText="No covered calls yet."
         refName="premium"
-        note="Every covered call earns premium; only called-away ones give up upside: (price now − strike) × shares. Premium kept = all finished covered calls net of buybacks, plus called-away premium. Solid = net (premium − upside given up), dashed = premium. Only selected lines are drawn: click boxes to add or remove them (All covered calls by default)."
+        assumptions={CALLS_ASSUMPTIONS}
         card={calledView}
         lots={calledView.lots}
         missing={called.missing}

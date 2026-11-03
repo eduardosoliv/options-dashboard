@@ -2,11 +2,14 @@
 import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import AssignmentsSection, {
+  ASSIGNED_ASSUMPTIONS,
+  CALLS_ASSUMPTIONS,
   callsSentence,
   fmtPct,
   fmtStrike,
   fmtUsd,
   fmtUsdAxis,
+  GENERAL_ASSUMPTIONS,
   tickerColors,
   toneClass,
   totalSentence,
@@ -254,7 +257,8 @@ describe('AssignmentsSection total sentences', () => {
     );
     expect(container.textContent).toContain('Total: $2,000 ahead of the S&P 500; $20,000 basis. ');
     expect(container.textContent).toContain('ahead of the S&P 500');
-    expect(container.textContent).not.toContain('deployed −');
+    // The Assumptions text mentions "deployed −" too; check the $ breakdown is absent.
+    expect(container.textContent).not.toContain('deployed − $');
   });
 });
 
@@ -269,5 +273,36 @@ describe('AssignmentsSection strikes and colors', () => {
   it('formats strikes', () => {
     expect(fmtStrike(80)).toBe('$80');
     expect(fmtStrike(52.5)).toBe('$52.50');
+  });
+});
+
+describe('AssignmentsSection assumptions', () => {
+  it('puts general assumptions at the top and each chart assumptions inside its card', () => {
+    const { container } = render(
+      <AssignmentsSection trades={TRADES} prices={PRICES} holdings={HOLDINGS} />,
+    );
+    const text = container.textContent;
+    const at = (/** @type {string} */ s) => text.indexOf(s);
+    const order = [
+      'Assumptions · General',
+      '$ gain / loss since assignment',
+      'Assumptions · Assigned Shares',
+      'Totalbasis',
+      'Premium kept vs upside given up',
+      'Assumptions · Covered Calls',
+      'All covered calls',
+    ].map(at);
+    expect(order.every((p) => p >= 0)).toBe(true);
+    expect([...order].sort((x, y) => x - y)).toEqual(order);
+    // Each chart's assumptions sit inside its card.
+    const cards = [...container.querySelectorAll('.rounded-xl')].filter((c) =>
+      c.querySelector('button'),
+    );
+    expect(cards.map((c) => c.textContent?.includes('Assumptions ·'))).toEqual([true, true]);
+    expect(GENERAL_ASSUMPTIONS[0]).toContain('Dividends are not included');
+    // Chart boxes hold only their own points; dividends live in General.
+    for (const item of [...ASSIGNED_ASSUMPTIONS, ...CALLS_ASSUMPTIONS]) {
+      expect(GENERAL_ASSUMPTIONS).not.toContain(item);
+    }
   });
 });
