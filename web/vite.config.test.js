@@ -45,10 +45,11 @@ describe('serveFetcherOutputInDev', () => {
     expect(serveFetcherOutputInDev().apply).toBe('serve');
   });
 
-  it('serves both trades.json and benchmarks.json', () => {
+  it('serves every fetcher output file', () => {
     expect([...middlewaresFor(pathToFileURL(`${dir}/`)).keys()]).toEqual([
       '/trades.json',
       '/benchmarks.json',
+      '/assignments.json',
     ]);
   });
 

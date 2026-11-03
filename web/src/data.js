@@ -33,17 +33,49 @@ export async function loadTrades(url = '/trades.json') {
  */
 
 /**
+ * Fetch an optional JSON file written by the fetcher. Resolves to null when
+ * it doesn't exist (not configured) — a 404, or the HTML page Vite's SPA
+ * fallback serves in its place; throws on any other failure so the caller
+ * can keep its last good value.
+ * @param {string} url
+ * @returns {Promise<unknown>}
+ */
+async function loadOptionalJson(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`${url} fetch failed: ${res.status}`);
+  if (!res.headers.get('content-type')?.includes('json')) return null;
+  return await res.json();
+}
+
+/**
  * Fetch benchmarks.json (PUT index return + T-bill rate from config.toml).
- * Resolves to null when the file doesn't exist (benchmarks not configured) —
- * a 404, or the HTML page Vite's SPA fallback serves in its place; throws on
- * any other failure so the caller can keep its last good value.
  * @param {string} [url]
  * @returns {Promise<Benchmarks | null>}
  */
 export async function loadBenchmarks(url = '/benchmarks.json') {
-  const res = await fetch(url, { cache: 'no-store' });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`benchmarks.json fetch failed: ${res.status}`);
-  if (!res.headers.get('content-type')?.includes('json')) return null;
-  return /** @type {Benchmarks} */ (await res.json());
+  return /** @type {Benchmarks | null} */ (await loadOptionalJson(url));
+}
+
+/**
+ * @typedef {import('./assignments.js').Holdings & import('./assignments.js').PriceHistory} Assignments
+ */
+
+/**
+ * Fetch assignments.json (broker lots + price history from the Sheet's
+ * AssignedCalled tab). Null when it isn't set up, or isn't shaped like one.
+ * @param {string} [url]
+ * @returns {Promise<Assignments | null>}
+ */
+export async function loadAssignments(url = '/assignments.json') {
+  const data = /** @type {Partial<Assignments> | null} */ (await loadOptionalJson(url));
+  const ok =
+    data !== null &&
+    typeof data === 'object' &&
+    typeof data.asOf === 'string' &&
+    Array.isArray(data.held) &&
+    Array.isArray(data.sold) &&
+    typeof data.series === 'object' &&
+    data.series !== null;
+  return ok ? /** @type {Assignments} */ (data) : null;
 }

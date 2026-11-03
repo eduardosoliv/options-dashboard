@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadBenchmarks, loadTrades, signature } from './data.js';
+import { loadAssignments, loadBenchmarks, loadTrades, signature } from './data.js';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -63,5 +63,39 @@ describe('loadBenchmarks', () => {
   it('throws on other failures so the last good value is kept', async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
     await expect(loadBenchmarks('/benchmarks.json')).rejects.toThrow('500');
+  });
+});
+
+describe('loadAssignments', () => {
+  const ok = (/** @type {unknown} */ body) => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => 'application/json' },
+    json: () => Promise.resolve(body),
+  });
+  const file = {
+    asOf: '2026-01-15',
+    held: [{ ticker: 'AAA', acquired: '2026-01-01', quantity: 100, costBasis: 9500 }],
+    sold: [],
+    series: { SPX: [['2026-01-01', 1000]], AAA: [['2026-01-01', 100]] },
+  };
+
+  it('parses assignments.json', async () => {
+    global.fetch = vi.fn().mockResolvedValue(ok(file));
+    await expect(loadAssignments('/assignments.json')).resolves.toEqual(file);
+  });
+  it('resolves null when the tab is not set up (404)', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    await expect(loadAssignments('/assignments.json')).resolves.toBeNull();
+  });
+  it('resolves null for JSON that is not shaped like assignments.json', async () => {
+    global.fetch = vi.fn().mockResolvedValue(ok({ putReturn: 7 }));
+    await expect(loadAssignments('/assignments.json')).resolves.toBeNull();
+    global.fetch = vi.fn().mockResolvedValue(ok({ ...file, series: null }));
+    await expect(loadAssignments('/assignments.json')).resolves.toBeNull();
+  });
+  it('throws on other failures so the last good value is kept', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    await expect(loadAssignments('/assignments.json')).rejects.toThrow('500');
   });
 });

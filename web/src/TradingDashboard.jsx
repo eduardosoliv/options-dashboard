@@ -2,6 +2,7 @@
 // Biome for correctness; excluded from strict tsc type-checking.
 import { Activity, AlertTriangle, ArrowUpDown, DollarSign, Search, Target, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import AssignmentsSection from './AssignmentsSection.jsx';
 import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, ErrorBar, LabelList, Legend, Line, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 
@@ -113,7 +114,7 @@ export function buildEquityCash(TRADES) {
   return { series, markers, netCash: last ? last.cash : 0 };
 }
 
-export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) {
+export default function TradingDashboard({ tradesData, updatedAt, benchmarks, assignments }) {
   const TRADES = tradesData;
   const updatedLabel = updatedAt
     ? new Date(updatedAt).toLocaleString('en-US', {
@@ -1230,6 +1231,9 @@ export default function TradingDashboard({ tradesData, updatedAt, benchmarks }) 
                 Dotted lines mark stock moving through the account: <span className="text-sky-400">assigned</span> = capital deployed buying shares at strike, <span className="text-pink-400">called</span> = capital received selling shares at strike. Net cash dips there even though those dollars are now held as shares.
               </div>
             </div>
+
+            {/* ==================== ASSIGNED & CALLED ==================== */}
+            <AssignmentsSection trades={TRADES} assignments={assignments} />
 
             {/* ==================== WINNERS & LOSERS ==================== */}
             <div>

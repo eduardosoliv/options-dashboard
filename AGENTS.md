@@ -16,12 +16,15 @@ only the one Sheet, read-only.
 ```
 fetcher/            Python service (managed with uv)
   normalize.py        pure Sheet-row → trade-object transforms
+  assignments.py      pure AssignedCalled-tab → assignments.json parser (optional tab)
   fetch_trades.py     OAuth + Sheets read + atomic write + CLI entrypoint
   tests/              pytest (runs against a real sample CSV export)
 web/                Vite + React 19 + Tailwind v4 app
   src/App.jsx              data loader: fetch + 10-min refresh + remount-on-change
-  src/TradingDashboard.jsx VENDORED dashboard (see rules below) — takes `tradesData` + `updatedAt` (+ optional `benchmarks`) props
+  src/TradingDashboard.jsx VENDORED dashboard (see rules below) — takes `tradesData` + `updatedAt` (+ optional `benchmarks`, `assignments`) props
   src/data.js             trades.json + benchmarks.json fetch, djb2 content hash
+  src/assignments.js       Assigned & Called: lots from trades + broker lots, $ vs S&P 500, covered calls, chart rows
+  src/AssignmentsSection.jsx  Assigned & Called section (assumptions, boxes, multi-select line charts)
   src/*.test.*            vitest (loader unit test + jsdom render smoke test)
   trades-example.json      sample dataset for previewing without Google (see README)
 config-example.toml template for `config.toml` (git-ignored): spreadsheet_id, sheet_range, output_path, optional [benchmarks]
@@ -73,7 +76,9 @@ Raw equivalents: `cd fetcher && uv run <ruff|mypy|pytest>`; `cd web && npm run <
   `biome.json`). Strict tooling applies to code we author, not this file.
 - **Do not reformat it or refactor its internals.** The only sanctioned edits so
   far: removing hardcoded data + dead code, and the `{ tradesData, updatedAt }`
-  prop swap, plus the optional `benchmarks` prop.
+  prop swap, plus the optional `benchmarks` and `assignments` props, and mounting
+  the authored sections (`AssignmentsSection`, Equity Curve net cash via the
+  exported `buildEquityCash`).
 - It reads all trade data from `const TRADES = tradesData;` (first line of the
   component). `App.jsx` remounts it via `key={sig}` when data changes, so its
   many `useMemo(…, [])` hooks recompute — do not "fix" those empty deps.
@@ -120,6 +125,23 @@ trades fetch. The dashboard gets it as the `benchmarks` prop (no remount; it's
 read in render, not in `useMemo`) and treats a 404 / non-JSON response as "not
 configured".
 
+### Assignments (`assignments.json`)
+
+Optional Sheet tab **`AssignedCalled`** (`assignments_range` in `config.toml`
+overrides the name), read with `UNFORMATTED_VALUE` + `SERIAL_NUMBER` dates:
+columns A–F are broker lots (`Ticker | Acquired | Quantity | Cost basis | Sold on
+| Proceeds`, totals; Sold on blank while held); from column H, rows labelled
+`Key` (dashboard ticker, `SPX` for the S&P 500) / `Google symbol` / `Prices`
+head one `GOOGLEFINANCE` Date/Close column pair per ticker. The fetcher writes
+`{ asOf, held, sold, series: {KEY: [[iso, close]]} }` next to `trades.json`
+after a successful trades fetch. A missing tab (HTTP 400) or malformed tab only
+warns and leaves any existing file untouched — it never fails the fetch. The
+dashboard gets it as the `assignments` prop (loaded like benchmarks: 404 /
+non-JSON / wrong shape ⇒ null, last good value kept on errors) and shows a
+setup hint instead of the charts when it's null. Broker lots are matched to
+trades by expected per-share price (strike ∓ premium per share), never on the
+wrong side of the strike, each lot used once.
+
 ## Invariants — don't break these
 
 - **Fail-safe fetch:** `fetch_trades.py` must never overwrite a good
@@ -129,9 +151,12 @@ configured".
   don't clear state on error.
 - **OAuth scope is exactly** `https://www.googleapis.com/auth/spreadsheets.readonly`
   — never add `drive.*` scopes.
+- **Personal position data stays out of git:** the repo is public. Real lots and
+  prices live only in the Sheet and the gitignored `assignments.json`; test
+  fixtures use made-up tickers and numbers, never real ones.
 - **Secrets stay out of git:** `fetcher/credentials.json`, `fetcher/token.json`,
   and `config.toml` are gitignored. Never commit them, `.venv/`, `node_modules/`,
-  `dist/`, or `trades.json`. Check `git status` before committing.
+  `dist/`, `trades.json`, or `assignments.json`. Check `git status` before committing.
 - The Sheet tab is named **`Master`** (default `sheet_range` in `config.toml`);
   in-play quotes are live via `GOOGLEFINANCE`, which is why the 10-min refresh
   matters.
@@ -147,7 +172,7 @@ configured".
   live dashboard after major UI/recharts changes. `App.test.jsx` drives `App`
   with a mocked `fetch` (trades + benchmarks loading); `web/vite.config.test.js`
   covers the dev-server middleware that serves `dist/trades.json` and
-  `dist/benchmarks.json` during `just dev` (every fetcher output file must be
+  `dist/benchmarks.json` / `dist/assignments.json` during `just dev` (every fetcher output file must be
   listed there, or dev falls back to `index.html`).
 - After any change, run `just check` and confirm it's green before reporting done.
 

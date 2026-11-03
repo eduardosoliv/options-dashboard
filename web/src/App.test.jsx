@@ -79,3 +79,65 @@ describe('App benchmarks', () => {
     expect(text).toContain('Set [benchmarks] put_return in config.toml');
   });
 });
+
+// Made-up broker lot and prices for the example data's MSFT assignment.
+const ASSIGNMENTS = {
+  asOf: '2026-03-20',
+  held: [{ ticker: 'MSFT', acquired: '2026-02-20', quantity: 100, costBasis: 42_000 }],
+  sold: [],
+  series: {
+    SPX: [
+      ['2026-02-20', 6000],
+      ['2026-03-20', 6120],
+    ],
+    MSFT: [
+      ['2026-02-20', 400],
+      ['2026-03-20', 440],
+    ],
+  },
+};
+
+/** Mocks fetch per file name: trades.json always loads. */
+const mockFiles = (/** @type {Record<string, unknown>} */ files) => {
+  global.fetch = vi.fn((url) =>
+    Promise.resolve(
+      url === '/trades.json' ? json(trades) : (files[url] ?? { ok: false, status: 404 }),
+    ),
+  );
+};
+
+/** Waits for the dashboard, then returns the Assigned & Called section's text. */
+const assignedSection = async () => {
+  await screen.findByText('Yield vs Benchmarks');
+  const text = document.body.textContent;
+  return text.slice(text.indexOf('Assigned & Called'), text.indexOf('Winners & Losers'));
+};
+
+describe('App assignments', () => {
+  it('passes assignments.json through to the Assigned & Called section', async () => {
+    mockFiles({ '/assignments.json': json(ASSIGNMENTS) });
+    render(<App />);
+    await screen.findByText('Assigned Shares');
+    const text = await assignedSection();
+    // 100 MSFT on a $420 basis, now 440 → +$2,000.
+    expect(text).toContain('MSFT×1 $435basis $420.00');
+    expect(text).toContain('+$2,000');
+    expect(global.fetch).toHaveBeenCalledWith('/assignments.json', { cache: 'no-store' });
+  });
+
+  it('shows the setup hint when assignments.json is missing', async () => {
+    mockFiles({});
+    render(<App />);
+    expect(await assignedSection()).toContain('No assignments.json yet');
+  });
+
+  it('still renders the dashboard when assignments.json fails to load', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {
+      /* expected: the failure is logged */
+    });
+    mockFiles({ '/assignments.json': { ok: false, status: 500 } });
+    render(<App />);
+    expect(await assignedSection()).toContain('No assignments.json yet');
+    expect(logged).toHaveBeenCalled();
+  });
+});

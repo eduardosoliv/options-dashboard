@@ -14,6 +14,10 @@ config.toml keys:
                    trades.json: put_return (Cboe PutWrite Index, PUT),
                    tbill_return (T-bill rate assumed on put collateral),
                    period (label for the window they cover)
+  assignments_range  optional tab with broker lots + price history for the
+                   Assigned & Called section (default "AssignedCalled"),
+                   written to assignments.json next to trades.json; a missing
+                   or malformed tab only warns
 
 OAuth file locations can still be overridden via the environment:
   CREDENTIALS_PATH OAuth client secret (default fetcher/credentials.json)
@@ -31,7 +35,9 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
+from assignments import parse_assigned_called
 from diff import diff_trades, format_summary
 from normalize import Trade, normalize_rows
 
@@ -100,6 +106,7 @@ def fetch_rows(
     spreadsheet_id: str,
     sheet_range: str,
     render: str = "FORMATTED_VALUE",
+    date_render: str = "FORMATTED_STRING",
 ) -> list[list[Any]]:
     service = build("sheets", "v4", credentials=creds, cache_discovery=False)
     resp = (
@@ -109,6 +116,7 @@ def fetch_rows(
             spreadsheetId=spreadsheet_id,
             range=sheet_range,
             valueRenderOption=render,
+            dateTimeRenderOption=date_render,
         )
         .execute()
     )
@@ -179,6 +187,44 @@ def load_config() -> tuple[str, str, str]:
     return spreadsheet_id, sheet_range, str(output)
 
 
+def load_assignments_range() -> str:
+    """Tab holding broker lots + price history (optional; default AssignedCalled)."""
+    return (
+        str(_read_config().get("assignments_range", "AssignedCalled")).strip() or "AssignedCalled"
+    )
+
+
+def fetch_assignment_rows(
+    creds: Credentials, spreadsheet_id: str, tab: str
+) -> list[list[Any]] | None:
+    """The tab's raw values (dates as serial numbers), or None if it doesn't exist."""
+    try:
+        return fetch_rows(creds, spreadsheet_id, tab, "UNFORMATTED_VALUE", "SERIAL_NUMBER")
+    except HttpError as exc:
+        if exc.resp.status == 400:  # noqa: PLR2004 - Sheets answers 400 "Unable to parse range"
+            return None
+        raise
+
+
+def update_assignments(creds: Credentials, spreadsheet_id: str, output_path: str) -> None:
+    """Write assignments.json next to trades.json. Optional: never raises; a
+    missing or malformed tab warns and leaves any existing file untouched."""
+    path = Path(output_path).with_name("assignments.json")
+    try:
+        tab = load_assignments_range()
+        rows = fetch_assignment_rows(creds, spreadsheet_id, tab)
+        if rows is None:
+            print(f"WARNING: no '{tab}' tab; skipping assignments.json", file=sys.stderr)
+            return
+        data = parse_assigned_called(rows)
+        write_json_atomic(str(path), data)
+    except Exception as exc:  # noqa: BLE001 - optional extra: warn, never block the fetch
+        print(f"WARNING: skipping assignments.json, leaving it untouched: {exc}", file=sys.stderr)
+    else:
+        lots = len(data["held"]) + len(data["sold"])
+        print(f"OK: wrote {lots} lots and {len(data['series'])} price series to {path}")
+
+
 def main() -> int:
     try:
         spreadsheet_id, sheet_range, output_path = load_config()
@@ -214,6 +260,7 @@ def main() -> int:
             print(format_summary(diff_trades(previous, trades)))
         else:
             print("  (baseline: no previous trades.json)")
+        update_assignments(creds, spreadsheet_id, output_path)
         return 0
 
 

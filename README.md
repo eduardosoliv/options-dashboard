@@ -110,6 +110,14 @@ sample file).
 > and the Overview's **Yield vs Benchmarks** section shows short put yield +
 > T-bill against PUT (which also earns T-bill interest on its collateral).
 
+> **Optional Assigned & Called:** add an **`AssignedCalled`** tab with your
+> broker lots (columns A–F: `Ticker, Acquired, Quantity, Cost basis, Sold on,
+> Proceeds`) and, from column H, one `GOOGLEFINANCE` Date/Close column pair per
+> ticker plus the S&P 500 (rows labelled `Key`, `Google symbol`, `Prices`). The
+> next `just fetch` writes `web/dist/assignments.json` and the section shows how
+> assigned shares did vs the S&P 500, and covered-call premium vs upside given
+> up. Without the tab the fetch just warns and the section shows a setup hint.
+
 > The Sheet's tab must be named **`Master`** (the default `sheet_range` in
 > `config.toml`). If yours differs, set `sheet_range` accordingly.
 
@@ -220,7 +228,7 @@ All via `just` (run `just --list` to see them):
 | `just dev` | Web app in dev mode with hot reload (`http://localhost:5173`) |
 | `just build` | Build the web app to `web/dist/` |
 | `just serve` | Serve the built app on `http://localhost:4173` |
-| `just fetch` | Run the fetcher once → `web/dist/trades.json` (+ `benchmarks.json` if configured; reads `config.toml`) |
+| `just fetch` | Run the fetcher once → `web/dist/trades.json` (+ `benchmarks.json` / `assignments.json` if configured; reads `config.toml`) |
 | `just test` | Run all tests (pytest + vitest) |
 | `just lint` | Lint everything, no writes (ruff, biome) — no type-checking |
 | `just fmt` | Auto-format + auto-fix everything (ruff + biome) |

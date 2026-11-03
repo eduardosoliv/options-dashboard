@@ -54,6 +54,8 @@ def _patch_sheet(monkeypatch, tmp_path, fetch_rows):
     monkeypatch.setattr(fetch_trades, "load_benchmarks", lambda: None)
     monkeypatch.setattr(fetch_trades, "get_creds", lambda *_: object())
     monkeypatch.setattr(fetch_trades, "fetch_rows", fetch_rows)
+    # The optional AssignedCalled tab has its own tests (test_assignments_fetch.py).
+    monkeypatch.setattr(fetch_trades, "update_assignments", lambda *_: None)
     return out
 
 
