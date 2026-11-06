@@ -394,7 +394,7 @@ function valueOn(lot, t) {
 }
 
 /**
- * Amount added to both total keys at every row, on its own dates (e.g. premium
+ * Amount added to the solid total at every row, on its own dates (e.g. premium
  * kept on covered calls that were never called away).
  * @typedef {{ times: number[], at: (t: number) => number }} Baseline
  */
@@ -426,7 +426,7 @@ export function chartRows(lots, baseline = NO_BASELINE) {
     const values = lots.map((l) => valueOn(l, row.t ?? 0)).filter((v) => v !== null);
     const base = baseline.at(row.t ?? 0);
     row[TOTAL] = base + values.reduce((s, v) => s + v.stock, 0);
-    row[`${TOTAL}|spx`] = base + values.reduce((s, v) => s + v.spx, 0);
+    row[`${TOTAL}|spx`] = values.reduce((s, v) => s + v.spx, 0);
   }
   return sorted;
 }
@@ -440,9 +440,10 @@ export function chartRows(lots, baseline = NO_BASELINE) {
 
 /**
  * Covered calls judged on their own terms: premium collected vs upside given
- * up. Each called-away lot becomes a line of its net (premium − (price −
- * strike) × shares) with the premium as its dashed reference; the total adds
- * the premium kept on every other finished covered call as of each date.
+ * up. Each called-away lot becomes a line of its premium with the upside given
+ * up ((price − strike) × shares) as its dashed reference, so the gap is the
+ * net; the solid total adds the premium kept on every other finished covered
+ * call as of each date.
  * @param {TradeLike[]} trades
  * @param {Lot[]} called lots from buildLots(..., 'called')
  * @param {string} asOf
@@ -453,9 +454,8 @@ export function coveredCalls(trades, called, asOf) {
     const premium = lot.premium ?? 0;
     const strike = lot.strikes[0] ?? 0;
     // lot.points measure the shares vs costPrice; shift to vs the strike.
-    const net = (/** @type {LotPoint} */ p) =>
-      premium - (p.stock + (lot.costPrice - strike) * lot.shares);
-    const points = lot.points.map((p) => ({ ...p, stock: net(p), spx: premium }));
+    const upside = (/** @type {LotPoint} */ p) => p.stock + (lot.costPrice - strike) * lot.shares;
+    const points = lot.points.map((p) => ({ ...p, stock: premium, spx: upside(p) }));
     return { ...lot, points, last: points.at(-1) ?? lot.last };
   });
   const cc = trades.filter((t) => t.type === 'Covered Call');
@@ -468,7 +468,7 @@ export function coveredCalls(trades, called, asOf) {
   if (!(done.length || lots.length)) return { lots, summary: null, baseline: NO_BASELINE };
   const lotPremium = lots.reduce((s, l) => s + (l.premium ?? 0), 0);
   const premiumKept = done.reduce((s, d) => s + d.amount, 0) + lotPremium;
-  const net = lots.reduce((s, l) => s + l.last.stock, 0) + premiumKept - lotPremium;
+  const upsideGivenUp = lots.reduce((s, l) => s + l.last.spx, 0);
   const first = [done[0]?.date, lots[0]?.date].filter((d) => d !== undefined).sort()[0] ?? asOf;
   const at = (/** @type {number} */ t) =>
     done.reduce((s, d) => (toMs(d.date) <= t ? s + d.amount : s), 0);
@@ -479,8 +479,8 @@ export function coveredCalls(trades, called, asOf) {
     lots,
     summary: {
       premiumKept,
-      upsideGivenUp: premiumKept - net,
-      net,
+      upsideGivenUp,
+      net: premiumKept - upsideGivenUp,
       openPremium: cc
         .filter((t) => t.status === 'IN PLAY')
         .reduce((s, t) => s + (t.premium ?? 0), 0),

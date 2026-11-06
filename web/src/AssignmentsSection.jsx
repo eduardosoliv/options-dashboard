@@ -262,7 +262,7 @@ function calledCard(trades, called, colors, asOf) {
         refValue: `$${lot.costPrice.toFixed(2)}`,
         date: lot.label,
         sold: null,
-        rows: callRows(lot.last.spx, lot.last.stock),
+        rows: callRows(lot.last.stock, lot.last.stock - lot.last.spx),
       }),
   );
   const rows = chartRows(lots, baseline);
@@ -341,7 +341,7 @@ const endDot =
   };
 
 /**
- * Solid line (result) and its dashed reference line (S&P 500 or premium),
+ * Solid line (result) and its dashed reference line (S&P 500 or upside given up),
  * drawn only for selected series so the chart stays readable.
  * @param {{ id: string, color: string, shown: Set<string>, isTotal: boolean, dot: ReturnType<typeof endDot> | false }} props
  */
@@ -519,9 +519,9 @@ export const ASSIGNED_ASSUMPTIONS = [
 
 export const CALLS_ASSUMPTIONS = [
   'Every covered call earns premium; only called-away ones give up upside.',
-  'Premium kept = all finished covered calls (closed or expired, net of buybacks) plus called-away premium. Open calls count once they finish.',
-  'Upside given up = (price now − strike) × shares on called-away lots; it moves with the stock price.',
-  'Net (solid) = premium − upside given up; premium is dashed.',
+  'Premium kept (solid) = all finished covered calls (closed or expired, net of buybacks) plus called-away premium. Open calls count once they finish.',
+  'Upside given up (dashed) = (price now − strike) × shares on called-away lots; it moves with the stock price.',
+  'Net = premium − upside given up, the gap between the lines: solid above dashed means the premium beat the upside given up.',
 ];
 
 /**
@@ -603,7 +603,7 @@ function AssignedAndCalled({ trades, assignments }) {
         eyebrow="Premium kept vs upside given up"
         title="Covered Calls"
         emptyText="No covered calls yet."
-        refName="premium"
+        refName="upside given up"
         assumptions={CALLS_ASSUMPTIONS}
         card={calledView}
         lots={calledView.lots}
