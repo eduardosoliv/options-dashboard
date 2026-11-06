@@ -402,31 +402,31 @@ describe('buildLots Fidelity matching rules', () => {
   });
 });
 
-describe('coveredCalls', () => {
-  // Called at 105 on Jan 8 (2 contracts, $150 premium); AAA is 107 that day, 114 by Jan 15.
-  const called = row({
-    status: 'CALLED',
-    type: 'Covered Call',
-    contracts: 2,
-    strike: 105,
-    closedOn: 'Jan 8, 26',
-    exitPrice: 107,
-    premiumCollected: 150,
-  });
-  const trades = [
-    called,
-    { ...row({}), type: 'Covered Call', status: 'CLOSED', closedOn: 'Jan 3, 26', gainLoss: 300 },
-    { ...row({}), type: 'Covered Call', status: 'EXPIRED', closedOn: 'Jan 10, 26', gainLoss: 50 },
-    { ...row({}), type: 'Covered Call', status: 'IN PLAY', closedOn: null, premium: 80 },
-    { ...row({}), type: 'Short Put', status: 'CLOSED', closedOn: 'Jan 4, 26', gainLoss: 999 },
-  ];
-  const view = () => coveredCalls(trades, buildLots(trades, PRICES, 'called').lots, PRICES.asOf);
+// Called at 105 on Jan 8 (2 contracts, $150 premium); AAA is 107 that day, 114 by Jan 15.
+const called = row({
+  status: 'CALLED',
+  type: 'Covered Call',
+  contracts: 2,
+  strike: 105,
+  closedOn: 'Jan 8, 26',
+  exitPrice: 107,
+  premiumCollected: 150,
+});
+const trades = [
+  called,
+  { ...row({}), type: 'Covered Call', status: 'CLOSED', closedOn: 'Jan 3, 26', gainLoss: 300 },
+  { ...row({}), type: 'Covered Call', status: 'EXPIRED', closedOn: 'Jan 10, 26', gainLoss: 50 },
+  { ...row({}), type: 'Covered Call', status: 'IN PLAY', closedOn: null, premium: 80 },
+  { ...row({}), type: 'Short Put', status: 'CLOSED', closedOn: 'Jan 4, 26', gainLoss: 999 },
+];
+const view = () => coveredCalls(trades, buildLots(trades, PRICES, 'called').lots, PRICES.asOf);
 
-  it('turns each called lot into premium − upside given up, with the premium as its reference', () => {
+describe('coveredCalls', () => {
+  it('turns each called lot into its premium, with the upside given up as its reference', () => {
     const [lot] = view().lots;
-    // Call day: 150 − (107 − 105) × 200 = −250. Jan 15: 150 − (114 − 105) × 200 = −1,650.
-    expect(lot?.points[0]).toMatchObject({ date: '2026-01-08', stock: -250, spx: 150 });
-    expect(lot?.last).toMatchObject({ date: '2026-01-15', stock: -1650, spx: 150 });
+    // Call day: (107 − 105) × 200 = 400 given up. Jan 15: (114 − 105) × 200 = 1,800.
+    expect(lot?.points[0]).toMatchObject({ date: '2026-01-08', stock: 150, spx: 400 });
+    expect(lot?.last).toMatchObject({ date: '2026-01-15', stock: 150, spx: 1800 });
   });
 
   it('totals premium kept on every finished covered call against upside given up', () => {
@@ -441,17 +441,53 @@ describe('coveredCalls', () => {
     });
   });
 
-  it('adds the running premium kept on other calls to the total line from the first call', () => {
+  it('adds the running premium kept on other calls to the solid total only', () => {
     const { lots, baseline } = view();
     const byDate = Object.fromEntries(
       chartRows(lots, baseline).map((r) => [new Date(r.t ?? 0).toISOString().slice(0, 10), r]),
     );
-    expect(byDate['2026-01-03']).toMatchObject({ total: 300, 'total|spx': 300 });
-    expect(byDate['2026-01-08']).toMatchObject({ total: 300 - 250, 'total|spx': 300 + 150 });
-    expect(byDate['2026-01-15']).toMatchObject({ total: 350 - 1650, 'total|spx': 350 + 150 });
+    expect(byDate['2026-01-03']).toMatchObject({ total: 300, 'total|spx': 0 });
+    expect(byDate['2026-01-08']).toMatchObject({ total: 300 + 150, 'total|spx': 400 });
+    expect(byDate['2026-01-15']).toMatchObject({ total: 350 + 150, 'total|spx': 1800 });
+  });
+
+  it("keeps a lot's premium flat while its upside given up follows the stock", () => {
+    const [lot] = view().lots;
+    expect(lot?.points.every((p) => p.stock === 150)).toBe(true);
+    expect(lot?.points.map((p) => p.spx)).toEqual([400, 1800]);
+  });
+
+  it('leaves the net as the gap between the two total lines', () => {
+    const { lots, baseline, summary } = view();
+    const last = chartRows(lots, baseline).at(-1);
+    expect((last?.[TOTAL] ?? 0) - (last?.[`${TOTAL}|spx`] ?? 0)).toBeCloseTo(summary?.net ?? 0);
+  });
+
+  it('holds the dashed total at $0 until shares are called away', () => {
+    const finished = trades.filter((t) => t.status !== 'CALLED');
+    const { lots, baseline, summary } = coveredCalls(finished, [], PRICES.asOf);
+    expect(chartRows(lots, baseline).every((r) => r[`${TOTAL}|spx`] === 0)).toBe(true);
+    expect(summary).toMatchObject({ upsideGivenUp: 0, net: summary?.premiumKept });
   });
 
   it('returns no summary without covered calls', () => {
     expect(coveredCalls([row({})], [], PRICES.asOf).summary).toBeNull();
+  });
+});
+
+describe('coveredCalls below the strike', () => {
+  it('makes the upside negative when the stock ends below the strike', () => {
+    // Called at 120 with AAA at 114 by Jan 15: (114 − 120) × 100 = −600.
+    const below = row({
+      status: 'CALLED',
+      type: 'Covered Call',
+      strike: 120,
+      closedOn: 'Jan 8, 26',
+      exitPrice: 107,
+      premiumCollected: 150,
+    });
+    const { lots } = buildLots([below], PRICES, 'called');
+    const { summary } = coveredCalls([below], lots, PRICES.asOf);
+    expect(summary).toMatchObject({ premiumKept: 150, upsideGivenUp: -600, net: 750 });
   });
 });
