@@ -139,9 +139,11 @@ function Chip({ chip, active, onToggle }) {
     >
       {/* One shared baseline: title, reference and date line up whatever their size. */}
       <div className="flex flex-wrap items-baseline gap-x-2">
+        {/* A border, not a background: it still prints with background graphics off. */}
         <span
-          className="inline-block w-3 h-[3px] rounded self-center"
-          style={{ background: chip.color }}
+          className="inline-block w-3 border-t-[3px] rounded self-center"
+          style={{ borderColor: chip.color }}
+          data-total={chip.id === TOTAL || undefined}
         />
         <span className="text-sm font-semibold text-zinc-100 num">
           {chip.title}
