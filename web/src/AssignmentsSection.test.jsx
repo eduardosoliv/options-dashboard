@@ -204,6 +204,18 @@ describe('AssignmentsSection interaction', () => {
   });
 });
 
+describe('AssignmentsSection print', () => {
+  it('marks only the Total swatch, so print can darken its near-white color', () => {
+    const { getAllByRole } = render(
+      <AssignmentsSection trades={TRADES} assignments={{ ...PRICES, ...HOLDINGS }} />,
+    );
+    const [total, lot] = getAllByRole('button');
+    if (!(total && lot)) throw new Error('missing boxes');
+    expect(total.querySelector('[data-total]')).not.toBeNull();
+    expect(lot.querySelector('[data-total]')).toBeNull();
+  });
+});
+
 describe('AssignmentsSection helpers', () => {
   it('formats signed percentages and dollars', () => {
     expect(fmtPct(12.345)).toBe('+12.3%');

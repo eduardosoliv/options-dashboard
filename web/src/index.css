@@ -1,1 +1,69 @@
 @import "tailwindcss";
+
+/* Print: src/print.js sizes the page to the screen width, but Chrome still
+   evaluates width media queries against the paper size, so md:/lg: never
+   match. Re-apply the md:/lg: grid columns the dashboard uses. */
+@media print {
+  .md\:grid-cols-2,
+  .lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .md\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .md\:gap-8 {
+    gap: calc(var(--spacing) * 8);
+  }
+
+  /* White paper theme. The dashboard is designed dark, and printing drops
+     background fills ("Background graphics" off), so anything marked only by a
+     fill or drawn in a light color would vanish on white paper. */
+
+  /* Selected view tab (amber fill) and segmented toggles (tinted fills). */
+  button.bg-amber-500,
+  button.bg-emerald-500\/20,
+  button.bg-rose-500\/20,
+  button.bg-sky-500\/20,
+  button.bg-zinc-700\/50 {
+    outline: 2px solid var(--color-zinc-900);
+    outline-offset: -2px;
+  }
+
+  /* Assigned & Called boxes: on white, the selected box's lighter border
+     would read as *less* selected, so swap to dark-thick vs light-thin. */
+  button[aria-pressed="true"] {
+    border: 2px solid var(--color-zinc-900);
+  }
+  button[aria-pressed="false"] {
+    border-color: var(--color-zinc-300);
+  }
+
+  /* Chart ink drawn for a dark card: the white Total line and swatch, light
+     value labels, hollow end rings filled with the card color, dark grid. */
+  .recharts-wrapper [stroke="#e4e4e7"] {
+    stroke: var(--color-zinc-900);
+  }
+  [data-total] {
+    /* biome-ignore lint/complexity/noImportantStyles: must beat the swatch's inline border-color */
+    border-color: var(--color-zinc-900) !important;
+  }
+  .recharts-wrapper text[style*="rgb(250, 250, 250)"],
+  .recharts-wrapper text[style*="rgb(228, 228, 231)"] {
+    /* biome-ignore lint/complexity/noImportantStyles: must beat the vendored labels' inline fill */
+    fill: var(--color-zinc-800) !important;
+  }
+  .recharts-wrapper [fill="#111113"] {
+    fill: white;
+  }
+  .recharts-cartesian-grid line {
+    stroke: var(--color-zinc-200);
+  }
+
+  /* Keep each chart whole on one page. */
+  .recharts-responsive-container {
+    break-inside: avoid;
+  }
+}
