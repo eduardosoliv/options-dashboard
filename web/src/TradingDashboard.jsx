@@ -82,6 +82,7 @@ export function buildEquityCash(TRADES) {
     runCash += d.cash;
     return {
       date: d.date,
+      t: d.dateObj.getTime(),
       pnl: Math.round(runPnl * 100) / 100,
       cash: Math.round(runCash * 100) / 100,
       premium: d.premium,
@@ -103,6 +104,7 @@ export function buildEquityCash(TRADES) {
       const total = k.list.reduce((sum, e) => sum + e.amount, 0);
       markers.push({
         date: d.date,
+        t: d.t,
         kind: k.kind,
         // Same-day assigned + called get nudged apart so both lines stay visible
         dx: kinds.length > 1 ? (k.kind === 'assigned' ? -3 : 3) : 0,
@@ -111,7 +113,15 @@ export function buildEquityCash(TRADES) {
     });
   });
   const last = series[series.length - 1];
-  return { series, markers, netCash: last ? last.cash : 0 };
+  // X-axis ticks on the 1st of each month spanned by the series (time axis, so they sit at true dates)
+  const monthTicks = [];
+  if (series.length) {
+    const first = new Date(series[0].t);
+    for (let m = new Date(first.getFullYear(), first.getMonth() + (first.getDate() > 1 ? 1 : 0), 1); m.getTime() <= last.t; m.setMonth(m.getMonth() + 1)) {
+      monthTicks.push(m.getTime());
+    }
+  }
+  return { series, markers, monthTicks, netCash: last ? last.cash : 0 };
 }
 
 export default function TradingDashboard({ tradesData, updatedAt, benchmarks, assignments }) {
@@ -1149,16 +1159,25 @@ export default function TradingDashboard({ tradesData, updatedAt, benchmarks, as
                     </linearGradient>
                   </defs>
                   <CartesianGrid stroke="#27272a" strokeDasharray="2 2" />
-                  <XAxis dataKey="date" stroke="#71717a" fontSize={10} />
+                  <XAxis
+                    dataKey="t"
+                    type="number"
+                    scale="time"
+                    domain={['dataMin', 'dataMax']}
+                    ticks={equityCash.monthTicks}
+                    tickFormatter={(v) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    stroke="#71717a"
+                    fontSize={10}
+                  />
                   <YAxis stroke="#71717a" fontSize={10} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
                   <Tooltip
                     {...TOOLTIP_STYLE}
-                    content={({ active, payload, label }) => {
+                    content={({ active, payload }) => {
                       if (!active || !payload || !payload.length) return null;
                       const d = payload[0].payload;
                       return (
                         <div style={TOOLTIP_STYLE.contentStyle} className="p-3">
-                          <div style={TOOLTIP_STYLE.labelStyle}>{label}</div>
+                          <div style={TOOLTIP_STYLE.labelStyle}>{d.date}</div>
                           <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#f59e0b' }}>Realized P&L: {fmtCurrency(d.pnl)}</div>
                           <div style={{ ...TOOLTIP_STYLE.itemStyle, color: '#a78bfa' }}>Net cash: {fmtCurrency(d.cash)}</div>
                           {d.premium > 0 && <div style={TOOLTIP_STYLE.itemStyle}>+ premium {fmtCurrency(d.premium)}</div>}
@@ -1184,7 +1203,7 @@ export default function TradingDashboard({ tradesData, updatedAt, benchmarks, as
                     return equityCash.markers.map((m, i) => (
                       <ReferenceLine
                         key={`${m.date}-${m.kind}`}
-                        x={m.date}
+                        x={m.t}
                         stroke="none"
                         label={({ viewBox }) => {
                           const color = m.kind === 'assigned' ? '#38bdf8' : '#f472b6';
