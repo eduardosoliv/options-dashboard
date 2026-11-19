@@ -618,14 +618,33 @@ const eqTrade = (over) => ({
   ...over,
 });
 
+// Local-midnight epoch ms, matching how the dashboard parses sheet dates
+const ts = (y, m, d) => new Date(y, m - 1, d).getTime();
+
 describe('buildEquityCash cash flows', () => {
   it('books premium on the open date and buybacks on the close date', () => {
     const { series, markers, netCash } = buildEquityCash([
       eqTrade({ premiumCollected: 400, closeCost: 150, gainLoss: 250 }),
     ]);
     expect(series).toEqual([
-      { date: 'Jan 5, 26', pnl: 0, cash: 400, premium: 400, buyback: 0, stock: [] },
-      { date: 'Jan 20, 26', pnl: 250, cash: 250, premium: 0, buyback: 150, stock: [] },
+      {
+        date: 'Jan 5, 26',
+        t: ts(2026, 1, 5),
+        pnl: 0,
+        cash: 400,
+        premium: 400,
+        buyback: 0,
+        stock: [],
+      },
+      {
+        date: 'Jan 20, 26',
+        t: ts(2026, 1, 20),
+        pnl: 250,
+        cash: 250,
+        premium: 0,
+        buyback: 150,
+        stock: [],
+      },
     ]);
     expect(markers).toEqual([]);
     expect(netCash).toBe(250);
@@ -639,7 +658,9 @@ describe('buildEquityCash cash flows', () => {
     expect(series[0]).toMatchObject({ pnl: 0, cash: 300 });
     expect(netCash).toBe(300);
   });
+});
 
+describe('buildEquityCash stock legs', () => {
   it('deducts capital deployed on assignment and adds capital received when called', () => {
     const { series, netCash } = buildEquityCash([
       // 2 × 80P assigned: -$16,000 of shares; premium 500, mark-to-market loss -1,200.
@@ -708,11 +729,18 @@ describe('buildEquityCash assignment / call-away markers', () => {
     expect(markers).toEqual([
       {
         date: 'Mar 20, 26',
+        t: ts(2026, 3, 20),
         kind: 'assigned',
         dx: 0,
         lines: ['Assigned', 'FIG×10, TTAN×2', '-$42.5k'],
       },
-      { date: 'May 15, 26', kind: 'assigned', dx: 0, lines: ['Assigned', 'NU×5', '-$6.5k'] },
+      {
+        date: 'May 15, 26',
+        t: ts(2026, 5, 15),
+        kind: 'assigned',
+        dx: 0,
+        lines: ['Assigned', 'NU×5', '-$6.5k'],
+      },
     ]);
   });
 });
@@ -743,15 +771,43 @@ describe('buildEquityCash same-day markers', () => {
       }),
     ]);
     expect(markers).toEqual([
-      { date: 'Sep 18, 26', kind: 'assigned', dx: -3, lines: ['Assigned', 'SNPS×1', '-$40.0k'] },
-      { date: 'Sep 18, 26', kind: 'called', dx: 3, lines: ['Called', 'VEEV×2', '+$51.0k'] },
+      {
+        date: 'Sep 18, 26',
+        t: ts(2026, 9, 18),
+        kind: 'assigned',
+        dx: -3,
+        lines: ['Assigned', 'SNPS×1', '-$40.0k'],
+      },
+      {
+        date: 'Sep 18, 26',
+        t: ts(2026, 9, 18),
+        kind: 'called',
+        dx: 3,
+        lines: ['Called', 'VEEV×2', '+$51.0k'],
+      },
     ]);
+  });
+});
+
+describe('buildEquityCash month ticks', () => {
+  it('puts a tick on the 1st of every month inside the series range', () => {
+    const { monthTicks } = buildEquityCash([
+      eqTrade({ acquired: 'Jan 13, 26', closedOn: 'Apr 1, 26' }),
+    ]);
+    expect(monthTicks).toEqual([ts(2026, 2, 1), ts(2026, 3, 1), ts(2026, 4, 1)]);
+  });
+
+  it('includes the first month when the series starts on the 1st and crosses years', () => {
+    const { monthTicks } = buildEquityCash([
+      eqTrade({ acquired: 'Dec 1, 25', closedOn: 'Jan 15, 26' }),
+    ]);
+    expect(monthTicks).toEqual([ts(2025, 12, 1), ts(2026, 1, 1)]);
   });
 });
 
 describe('buildEquityCash edge cases', () => {
   it('skips rows without a parseable date and handles an empty book', () => {
-    expect(buildEquityCash([])).toEqual({ series: [], markers: [], netCash: 0 });
+    expect(buildEquityCash([])).toEqual({ series: [], markers: [], monthTicks: [], netCash: 0 });
     const { series } = buildEquityCash([
       eqTrade({ acquired: null, closedOn: null, premiumCollected: 100 }),
     ]);
